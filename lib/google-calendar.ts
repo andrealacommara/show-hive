@@ -47,3 +47,14 @@ export async function deleteGoogleCalendarEvent(eventId: string) {
 
   return true
 }
+
+export async function updateGoogleCalendarEvent(eventId: string, event: Partial<CalendarEvent>) {
+  const calendar = getCalendarClient()
+  const { data } = await calendar.events.patch({
+    calendarId: CENTRAL_CALENDAR_ID,
+    eventId,
+    requestBody: event,
+    sendUpdates: "all",
+  })
+  return data
+}

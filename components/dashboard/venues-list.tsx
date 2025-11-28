@@ -1,8 +1,11 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { MapPin, Building2 } from "lucide-react"
+import { MapPin, Building2, Pencil, Trash2 } from "lucide-react"
 import { CreateVenueDialog } from "./create-venue-dialog"
+import { EditVenueDialog } from "./edit-venue-dialog"
 
 interface Venue {
   id: string
@@ -14,9 +17,29 @@ interface Venue {
 interface VenuesListProps {
   venues: Venue[]
   currentUserId: string
+  isAdmin?: boolean
 }
 
-export function VenuesList({ venues, currentUserId }: VenuesListProps) {
+export function VenuesList({ venues, currentUserId, isAdmin = false }: VenuesListProps) {
+  const router = useRouter()
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const handleDelete = async (venue: Venue) => {
+    if (!isAdmin) return
+    if (!confirm(`Eliminare il locale "${venue.name}"?`)) return
+    setBusyId(venue.id)
+    try {
+      const res = await fetch(`/api/venues/${venue.id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Delete failed")
+      router.refresh()
+    } catch (error) {
+      console.error("Delete venue failed", error)
+      alert("Impossibile eliminare il locale")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -38,7 +61,32 @@ export function VenuesList({ venues, currentUserId }: VenuesListProps) {
           <div className="space-y-3">
             {venues.map((venue) => (
               <div key={venue.id} className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                <h4 className="font-medium mb-1">{venue.name}</h4>
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-medium mb-1">{venue.name}</h4>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <EditVenueDialog venue={venue} onUpdated={() => router.refresh()}>
+                        <button
+                          type="button"
+                          disabled={busyId === venue.id}
+                          className="rounded p-1 hover:bg-accent"
+                          aria-label="Modifica locale"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      </EditVenueDialog>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(venue)}
+                        disabled={busyId === venue.id}
+                        className="rounded p-1 hover:bg-accent"
+                        aria-label="Elimina locale"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
                 {(venue.address || venue.city) && (
                   <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4 mt-0.5 shrink-0" />

@@ -1,40 +1,38 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
 
-interface CreateVenueDialogProps {
-  currentUserId: string
+type Venue = {
+  id: string
+  name: string
+  address?: string
+  city?: string
 }
 
-export function CreateVenueDialog({ currentUserId }: CreateVenueDialogProps) {
+interface EditVenueDialogProps {
+  venue: Venue
+  onUpdated?: () => void
+  children: ReactNode
+}
+
+export function EditVenueDialog({ venue, onUpdated, children }: EditVenueDialogProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    name: "",
-    address: "",
-    city: "",
+    name: venue.name || "",
+    address: venue.address || "",
+    city: venue.city || "",
   })
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-
     try {
       const payload = {
         name: formData.name.trim(),
@@ -46,23 +44,18 @@ export function CreateVenueDialog({ currentUserId }: CreateVenueDialogProps) {
         throw new Error("Nome locale obbligatorio")
       }
 
-      const response = await fetch("/api/venues", {
-        method: "POST",
+      const res = await fetch(`/api/venues/${venue.id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Errore durante la creazione del locale")
-      }
-
+      if (!res.ok) throw new Error("Update failed")
       setOpen(false)
-      setFormData({ name: "", address: "", city: "" })
+      onUpdated?.()
       router.refresh()
     } catch (error) {
-      console.error("[app] Error creating venue:", error)
-      alert("Errore durante la creazione del locale")
+      console.error("Update venue failed", error)
+      alert("Impossibile aggiornare il locale")
     } finally {
       setIsLoading(false)
     }
@@ -70,46 +63,38 @@ export function CreateVenueDialog({ currentUserId }: CreateVenueDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Plus className="h-4 w-4 mr-2" />
-          Aggiungi
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Aggiungi Locale</DialogTitle>
-          <DialogDescription>Inserisci i dettagli del nuovo locale</DialogDescription>
+          <DialogTitle>Modifica Locale</DialogTitle>
+          <DialogDescription>Aggiorna i dettagli del locale</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome Locale</Label>
+            <Label htmlFor={`name-${venue.id}`}>Nome Locale</Label>
             <Input
-              id="name"
+              id={`name-${venue.id}`}
               name="name"
-              placeholder="es. Bar Centrale"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
             />
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="address">Indirizzo</Label>
+            <Label htmlFor={`address-${venue.id}`}>Indirizzo</Label>
             <Input
-              id="address"
+              id={`address-${venue.id}`}
               name="address"
-              placeholder="Via Roma 123"
+              placeholder="Via Roma 1"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
             <p className="text-xs text-muted-foreground">Inserisci via e numero civico per una geolocalizzazione migliore.</p>
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="city">Città</Label>
+            <Label htmlFor={`city-${venue.id}`}>Città</Label>
             <Input
-              id="city"
+              id={`city-${venue.id}`}
               name="city"
               placeholder="Milano"
               value={formData.city}
@@ -117,13 +102,12 @@ export function CreateVenueDialog({ currentUserId }: CreateVenueDialogProps) {
             />
             <p className="text-xs text-muted-foreground">Aggiungi sempre la città per il parsing corretto in Google Calendar.</p>
           </div>
-
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
               Annulla
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creazione..." : "Aggiungi Locale"}
+              {isLoading ? "Salvataggio..." : "Salva"}
             </Button>
           </div>
         </form>

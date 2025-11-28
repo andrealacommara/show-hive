@@ -13,6 +13,7 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Calendar, LogOut } from "lucide-react"
+import { EditProfileDialog } from "./edit-profile-dialog"
 
 interface DashboardHeaderProps {
   user: any
@@ -45,7 +46,7 @@ export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
             </div>
             <div>
               <h1 className="text-xl font-bold text-balance sm:text-2xl">Gestionale Turni</h1>
-              <p className="text-sm text-muted-foreground">Gestisci i turni del tuo team</p>
+              <p className="text-sm text-muted-foreground">Gestisci i turni di Show Hive</p>
             </div>
           </div>
 
@@ -65,6 +66,16 @@ export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
                   <p className="text-xs leading-none text-muted-foreground break-all">{user.email}</p>
                 </div>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <EditProfileDialog fullName={profile?.full_name}>
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault()
+                  }}
+                >
+                  Modifica profilo
+                </DropdownMenuItem>
+              </EditProfileDialog>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />

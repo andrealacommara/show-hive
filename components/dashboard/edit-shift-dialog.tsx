@@ -1,24 +1,14 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface Venue {
@@ -32,60 +22,84 @@ interface User {
   email: string
 }
 
-interface CreateShiftDialogProps {
-  venues: Venue[]
-  users: User[]
-  currentUserId: string
+interface Shift {
+  id: string
+  title: string
+  description?: string
+  venue_id: string
+  shift_date: string
+  start_time: string
+  end_time: string
+  shift_assignees?: { user: User }[]
 }
 
-export function CreateShiftDialog({ venues, users, currentUserId }: CreateShiftDialogProps) {
+interface EditShiftDialogProps {
+  shift: Shift
+  venues: Venue[]
+  users: User[]
+  children: React.ReactNode
+  onDeleted?: (id: string) => void
+}
+
+export function EditShiftDialog({ shift, venues, users, children, onDeleted }: EditShiftDialogProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    venue_id: "",
-    assignees: [] as string[],
-    shift_date: "",
-    start_time: "",
-    end_time: "",
+    title: shift.title,
+    description: shift.description || "",
+    venue_id: shift.venue_id,
+    shift_date: shift.shift_date,
+    start_time: shift.start_time,
+    end_time: shift.end_time,
+    assignees: (shift.shift_assignees || []).map((a) => a.user.id),
   })
-  const router = useRouter()
+
+  const toggleAssignee = (id: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      assignees: prev.assignees.includes(id)
+        ? prev.assignees.filter((item) => item !== id)
+        : [...prev.assignees, id],
+    }))
+  }
+
+  const handleDelete = async () => {
+    if (!confirm("Eliminare questo turno?")) return
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/shifts/${shift.id}`, { method: "DELETE" })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Delete failed")
+      }
+      onDeleted?.(shift.id)
+      setOpen(false)
+      router.refresh()
+    } catch (error) {
+      console.error("Delete shift failed", error)
+      alert("Impossibile eliminare il turno")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-
     try {
-      const response = await fetch("/api/shifts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formData,
-          assignees: formData.assignees,
-        }),
+      const res = await fetch(`/api/shifts/${shift.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to create shift")
-      }
-
+      if (!res.ok) throw new Error("Update failed")
       setOpen(false)
-      setFormData({
-        title: "",
-        description: "",
-        venue_id: "",
-        assignees: [],
-        shift_date: "",
-        start_time: "",
-        end_time: "",
-      })
       router.refresh()
     } catch (error) {
-      console.error("[app] Error creating shift:", error)
-      alert("Errore durante la creazione del turno")
+      console.error("Update shift failed", error)
+      alert("Impossibile aggiornare il turno")
     } finally {
       setIsLoading(false)
     }
@@ -93,24 +107,17 @@ export function CreateShiftDialog({ venues, users, currentUserId }: CreateShiftD
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-         Aggiungi
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[500px] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Crea Nuovo Turno</DialogTitle>
-          <DialogDescription>Aggiungi un nuovo turno e assegnalo a un membro del team</DialogDescription>
+          <DialogTitle>Modifica Turno</DialogTitle>
+          <DialogDescription>Aggiorna dettagli, assegnazioni e orari.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Titolo Turno</Label>
+            <Label htmlFor="title">Titolo</Label>
             <Input
               id="title"
-              name="title"
-              placeholder="es. Turno Serale"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required
@@ -118,11 +125,9 @@ export function CreateShiftDialog({ venues, users, currentUserId }: CreateShiftD
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descrizione (opzionale)</Label>
+            <Label htmlFor="description">Descrizione</Label>
             <Textarea
               id="description"
-              name="description"
-              placeholder="Note aggiuntive sul turno..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
@@ -131,12 +136,8 @@ export function CreateShiftDialog({ venues, users, currentUserId }: CreateShiftD
 
           <div className="space-y-2">
             <Label htmlFor="venue">Locale</Label>
-            <Select
-              value={formData.venue_id}
-              onValueChange={(value) => setFormData({ ...formData, venue_id: value })}
-              required
-            >
-              <SelectTrigger id="venue" name="venue">
+            <Select value={formData.venue_id} onValueChange={(value) => setFormData({ ...formData, venue_id: value })}>
+              <SelectTrigger>
                 <SelectValue placeholder="Seleziona un locale" />
               </SelectTrigger>
               <SelectContent>
@@ -150,7 +151,7 @@ export function CreateShiftDialog({ venues, users, currentUserId }: CreateShiftD
           </div>
 
           <div className="space-y-2">
-            <Label>Assegna a (multipli)</Label>
+            <Label>Assegnati</Label>
             <div className="rounded-md border p-2">
               <ScrollArea className="max-h-40 pr-2">
                 <div className="space-y-2">
@@ -160,14 +161,7 @@ export function CreateShiftDialog({ venues, users, currentUserId }: CreateShiftD
                       <button
                         type="button"
                         key={user.id}
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            assignees: selected
-                              ? prev.assignees.filter((id) => id !== user.id)
-                              : [...prev.assignees, user.id],
-                          }))
-                        }
+                        onClick={() => toggleAssignee(user.id)}
                         className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm ${
                           selected ? "border-primary bg-primary/5" : "hover:bg-muted"
                         }`}
@@ -195,7 +189,6 @@ export function CreateShiftDialog({ venues, users, currentUserId }: CreateShiftD
             <Label htmlFor="date">Data</Label>
             <Input
               id="date"
-              name="shift_date"
               type="date"
               value={formData.shift_date}
               onChange={(e) => setFormData({ ...formData, shift_date: e.target.value })}
@@ -207,33 +200,37 @@ export function CreateShiftDialog({ venues, users, currentUserId }: CreateShiftD
             <div className="space-y-2">
               <Label htmlFor="start">Ora Inizio</Label>
               <Input
-              id="start"
-              name="start_time"
-              type="time"
-              value={formData.start_time}
-              onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-              required
+                id="start"
+                type="time"
+                value={formData.start_time}
+                onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="end">Ora Fine</Label>
               <Input
-              id="end"
-              name="end_time"
-              type="time"
-              value={formData.end_time}
-              onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-              required
+                id="end"
+                type="time"
+                value={formData.end_time}
+                onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                required
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
-              Annulla
+          <div className="flex flex-col gap-2 pt-4">
+            <Button type="submit" disabled={isLoading || isDeleting} className="w-full">
+              {isLoading ? "Salvataggio..." : "Salva"}
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creazione..." : "Crea Turno"}
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isLoading || isDeleting}
+              className="w-full"
+            >
+              {isDeleting ? "Eliminazione..." : "Elimina"}
             </Button>
           </div>
         </form>

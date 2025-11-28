@@ -18,9 +18,10 @@ interface Member {
 interface MembersCardProps {
   members: Member[]
   currentUserEmail: string
+  profiles: { email: string; full_name?: string }[]
 }
 
-export function MembersCard({ members: initialMembers, currentUserEmail }: MembersCardProps) {
+export function MembersCard({ members: initialMembers, currentUserEmail, profiles }: MembersCardProps) {
   const [members, setMembers] = useState<Member[]>(initialMembers)
   const [email, setEmail] = useState("")
   const [role, setRole] = useState<Member["role"]>("member")
@@ -93,6 +94,8 @@ export function MembersCard({ members: initialMembers, currentUserEmail }: Membe
   }
 
   const adminCount = members.filter((m) => m.role === "admin").length
+  const emailToName = new Map(profiles.map((p) => [p.email.toLowerCase(), p.full_name || ""]))
+  const isAdmin = members.some((m) => m.email === currentUserEmail && m.role === "admin")
 
   return (
     <Card>
@@ -130,11 +133,15 @@ export function MembersCard({ members: initialMembers, currentUserEmail }: Membe
           {members.length === 0 && <p className="text-sm text-muted-foreground">Nessun collaboratore ancora.</p>}
           {members.map((member) => {
             const removable = !(member.role === "admin" && adminCount <= 1)
+            const name = emailToName.get(member.email.toLowerCase()) || member.email
             return (
               <div key={member.id} className="rounded border p-2 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{member.email}</span>
-                  {member.email === currentUserEmail && <Badge variant="secondary">Tu</Badge>}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-col">
+                    <span className="font-medium">{name}</span>
+                    <span className="text-xs text-muted-foreground">{member.email}</span>
+                  </div>
+                  {member.email === currentUserEmail && <Badge className="ml-auto" variant="secondary">Tu</Badge>}
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -153,7 +160,7 @@ export function MembersCard({ members: initialMembers, currentUserEmail }: Membe
                       </SelectContent>
                     </Select>
                   </div>
-                  {removable && (
+                  {isAdmin && removable && (
                     <Button
                       type="button"
                       variant="outline"

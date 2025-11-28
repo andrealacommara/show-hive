@@ -1,90 +1,160 @@
-"use client"
+"use client";
 
-import { useMemo, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Clock, MapPin, User, Calendar, Filter } from "lucide-react"
-import { format } from "date-fns"
-import { it } from "date-fns/locale"
-import { CreateShiftDialog } from "./create-shift-dialog"
-import { ShiftActions } from "./shift-actions"
+import { useMemo, useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Clock, MapPin, User, Calendar, Filter, Pencil } from "lucide-react";
+import { format, startOfDay, isSameDay } from "date-fns";
+import { it } from "date-fns/locale";
+import { CreateShiftDialog } from "./create-shift-dialog";
+import { EditShiftDialog } from "./edit-shift-dialog";
 
 interface Shift {
-  id: string
-  title: string
-  description?: string
-  shift_date: string
-  start_time: string
-  end_time: string
-  venue?: { id: string; name: string; address?: string; city?: string }
-  assigned_user?: { id: string; full_name?: string; email?: string }
-  shift_assignees?: { user: { id: string; full_name?: string; email?: string } }[]
-  google_calendar_event_id?: string
+  id: string;
+  title: string;
+  description?: string;
+  shift_date: string;
+  start_time: string;
+  end_time: string;
+  venue_id: string;
+  venue?: { id: string; name: string; address?: string; city?: string };
+  assigned_user?: { id: string; full_name?: string; email?: string };
+  shift_assignees?: {
+    user: { id: string; full_name?: string; email?: string };
+  }[];
+  google_calendar_event_id?: string;
 }
 
 interface Venue {
-  id: string
-  name: string
+  id: string;
+  name: string;
 }
 
 interface ShiftsListProps {
-  shifts: Shift[]
-  venues: Venue[]
-  users: any[]
-  currentUserId: string
+  shifts: Shift[];
+  venues: Venue[];
+  users: any[];
+  currentUserId: string;
+  isAdmin?: boolean;
+  selectedDate?: Date | null;
+  onClearDate?: () => void;
 }
 
-export function ShiftsList({ shifts, venues, users, currentUserId }: ShiftsListProps) {
-  const [selectedVenue, setSelectedVenue] = useState<string | "all">("all")
-  const [selectedUser, setSelectedUser] = useState<string | "all">("all")
-  const [onlyMine, setOnlyMine] = useState(false)
+export function ShiftsList({
+  shifts,
+  venues,
+  users,
+  currentUserId,
+  isAdmin = false,
+  selectedDate,
+  onClearDate,
+}: ShiftsListProps) {
+  const [selectedVenue, setSelectedVenue] = useState<string | "all">("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [localShifts, setLocalShifts] = useState<Shift[]>(shifts);
 
-  const upcomingShifts = useMemo(
-    () => shifts.filter((shift) => new Date(shift.shift_date) >= new Date()),
-    [shifts],
-  )
+  useEffect(() => {
+    setLocalShifts(shifts);
+  }, [shifts]);
+
+  const upcomingShifts = useMemo(() => {
+    const today = startOfDay(new Date()).getTime();
+    return localShifts.filter((shift) => {
+      const shiftDay = startOfDay(new Date(shift.shift_date)).getTime();
+      return shiftDay >= today;
+    });
+  }, [localShifts]);
 
   const filteredShifts = useMemo(() => {
-    return upcomingShifts.filter((shift) => {
-      const matchesVenue = selectedVenue === "all" || shift.venue?.id === selectedVenue
-      const matchesUser =
-        selectedUser === "all"
-          ? true
-          : selectedUser === "unassigned"
-            ? (shift.shift_assignees?.length || 0) === 0
-            : (shift.shift_assignees || []).some((a) => a.user?.id === selectedUser)
-      const matchesMine =
-        !onlyMine || (shift.shift_assignees || []).some((a) => a.user?.id === currentUserId)
+    const base = selectedDate
+      ? localShifts.filter((shift) =>
+          isSameDay(new Date(shift.shift_date), selectedDate)
+        )
+      : upcomingShifts;
 
-      return matchesVenue && matchesUser && matchesMine
-    })
-  }, [upcomingShifts, selectedVenue, selectedUser, onlyMine, currentUserId])
+    return base.filter((shift) => {
+      const matchesVenue =
+        selectedVenue === "all" || shift.venue?.id === selectedVenue;
+      const assignees = shift.shift_assignees || [];
+      const matchesAssignee =
+        assigneeFilter === "all"
+          ? true
+          : assigneeFilter === "unassigned"
+          ? assignees.length === 0
+          : assigneeFilter === "me"
+          ? assignees.some((a) => a.user?.id === currentUserId)
+          : assignees.some((a) => a.user?.id === assigneeFilter);
+
+      return matchesVenue && matchesAssignee;
+    });
+  }, [
+    upcomingShifts,
+    selectedVenue,
+    assigneeFilter,
+    currentUserId,
+    selectedDate,
+    localShifts,
+  ]);
+
+  const handleDeleted = (id: string) => {
+    setLocalShifts((prev) => prev.filter((s) => s.id !== id));
+  };
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+      <CardHeader className="space-y-4">
+        <div className="flex flex-row gap-3 ">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Calendar className="h-5 w-5" />
-            Prossimi Turni
+            Eventi
           </CardTitle>
-          <CreateShiftDialog venues={venues} users={users} currentUserId={currentUserId} />
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Filtra</span>
+          <div className="ml-auto">
+            <CreateShiftDialog
+              venues={venues}
+              users={users}
+              currentUserId={currentUserId}
+            />
           </div>
-          <Select value={selectedUser} onValueChange={(value) => setSelectedUser(value as typeof selectedUser)}>
-            <SelectTrigger className="text-sm">
+        </div>
+        {selectedDate && (
+          <div className="flex flex-row justify-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
+            <span>
+              {format(selectedDate, "EEEE d MMMM yyyy", { locale: it })}
+            </span>
+            {onClearDate && (
+              <button
+                type="button"
+                onClick={onClearDate}
+                className="text-xs underline text-primary hover:text-primary/80"
+              >
+                Mostra tutti
+              </button>
+            )}
+          </div>
+        )}
+        <div className="grid w-full gap-3 sm:grid-cols-[auto,1fr,1fr] items-center">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            <span>Filtra</span>
+          </div>
+          <Select
+            value={assigneeFilter}
+            onValueChange={(value) => setAssigneeFilter(value)}
+          >
+            <SelectTrigger className="text-sm w-full">
               <SelectValue placeholder="Utente" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tutti gli utenti</SelectItem>
               <SelectItem value="unassigned">Non assegnati</SelectItem>
-              <SelectItem value={currentUserId}>Assegnati a me</SelectItem>
+              <SelectItem value="me">Assegnati a me</SelectItem>
               {users.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.full_name || user.email}
@@ -94,9 +164,11 @@ export function ShiftsList({ shifts, venues, users, currentUserId }: ShiftsListP
           </Select>
           <Select
             value={selectedVenue}
-            onValueChange={(value) => setSelectedVenue(value as typeof selectedVenue)}
+            onValueChange={(value) =>
+              setSelectedVenue(value as typeof selectedVenue)
+            }
           >
-            <SelectTrigger className="text-sm">
+            <SelectTrigger className="text-sm w-full">
               <SelectValue placeholder="Locale" />
             </SelectTrigger>
             <SelectContent>
@@ -108,14 +180,6 @@ export function ShiftsList({ shifts, venues, users, currentUserId }: ShiftsListP
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant={onlyMine ? "default" : "outline"}
-            className="md:col-span-3"
-            onClick={() => setOnlyMine((prev) => !prev)}
-            size="sm"
-          >
-            {onlyMine ? "Mostra tutti i turni" : "Mostra solo i miei turni"}
-          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -127,24 +191,53 @@ export function ShiftsList({ shifts, venues, users, currentUserId }: ShiftsListP
         ) : (
           <div className="space-y-4">
             {filteredShifts.map((shift) => (
-              <div key={shift.id} className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+              <div
+                key={shift.id}
+                className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+              >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">{shift.title}</h3>
-                    {shift.description && <p className="text-sm text-muted-foreground mt-1">{shift.description}</p>}
+                    {shift.description && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {shift.description}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {shift.google_calendar_event_id && <Badge variant="secondary">Su Calendar</Badge>}
-                    <ShiftActions shiftId={shift.id} />
+                    {(isAdmin ||
+                      (shift.shift_assignees || []).some(
+                        (a) => a.user?.id === currentUserId
+                      )) && (
+                      <EditShiftDialog
+                        shift={shift as any}
+                        venues={venues}
+                        users={users}
+                        onDeleted={handleDeleted}
+                      >
+                        <button
+                          type="button"
+                          className="rounded p-2 hover:bg-accent text-muted-foreground"
+                          aria-label="Modifica turno"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      </EditShiftDialog>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid gap-2 text-sm">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    <span>{format(new Date(shift.shift_date), "EEEE d MMMM yyyy", { locale: it })}</span>
+                    <span>
+                      {format(new Date(shift.shift_date), "EEEE d MMMM yyyy", {
+                        locale: it,
+                      })}
+                    </span>
                     <span className="font-medium">
-                      {shift.start_time?.slice(0, 5)} - {shift.end_time?.slice(0, 5)}
+                      {shift.start_time?.slice(0, 5)} -{" "}
+                      {shift.end_time?.slice(0, 5)}
                     </span>
                   </div>
 
@@ -158,18 +251,19 @@ export function ShiftsList({ shifts, venues, users, currentUserId }: ShiftsListP
                     </div>
                   )}
 
-                  {shift.shift_assignees && shift.shift_assignees.length > 0 && (
-                    <div className="flex items-start gap-2 text-muted-foreground">
-                      <User className="h-4 w-4 mt-0.5" />
-                      <div className="flex flex-wrap gap-2">
-                        {shift.shift_assignees.map(({ user }) => (
-                          <Badge key={user.id} variant="secondary">
-                            {user.full_name || user.email}
-                          </Badge>
-                        ))}
+                  {shift.shift_assignees &&
+                    shift.shift_assignees.length > 0 && (
+                      <div className="flex items-start gap-2 text-muted-foreground">
+                        <User className="h-4 w-4 mt-0.5" />
+                        <div className="flex flex-wrap gap-2">
+                          {shift.shift_assignees.map(({ user }) => (
+                            <Badge key={user.id} variant="secondary">
+                              {user.full_name || user.email}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </div>
             ))}
@@ -177,5 +271,5 @@ export function ShiftsList({ shifts, venues, users, currentUserId }: ShiftsListP
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

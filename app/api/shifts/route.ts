@@ -81,16 +81,21 @@ export async function POST(request: Request) {
         const endDateDate = shift.end_time <= shift.start_time ? addOneDay(shift.shift_date) : shift.shift_date
         const endDateTime = buildDateTime(endDateDate, shift.end_time)
 
-        const location = shift.venue?.address
-          ? `${shift.venue.name}, ${shift.venue.address}${shift.venue.city ? `, ${shift.venue.city}` : ""}`
-          : shift.venue?.name || ""
+        const venueInfo = fullShift?.venue
+        const name = venueInfo?.name?.trim()
+        const street = venueInfo?.address?.trim()
+        const city = venueInfo?.city?.trim()
+
+        // Prefer address + city for better Google parsing; fall back to name + city or just name
+        const location = street && city ? `${street}, ${city}` : street || (name && city ? `${name}, ${city}` : name || "")
 
         const attendees =
           fullShift?.shift_assignees?.map((a) => (a.user?.email ? { email: a.user.email } : null)).filter(Boolean) ||
           []
 
+        const venueName = venueInfo?.name?.trim()
         const calendarEvent = await createGoogleCalendarEvent({
-          summary: shift.title,
+          summary: venueName ? `${shift.title} - ${venueName}` : shift.title,
           description: shift.description || "",
           location,
           start: {

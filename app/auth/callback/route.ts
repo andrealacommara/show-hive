@@ -19,12 +19,22 @@ export async function GET(request: Request) {
 
     if (session?.user) {
       const user = session.user
+      const { data: existingProfile } = await admin
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      const providerName = user.user_metadata?.full_name || user.user_metadata?.name || user.email
+      const providerAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture
+      const full_name = existingProfile?.full_name || providerName
+      const avatar_url = providerAvatar || existingProfile?.avatar_url
 
       await supabase.from("profiles").upsert({
         id: user.id,
         email: user.email,
-        full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
-        avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+        full_name,
+        avatar_url,
       })
 
       // Bootstrap first admin if none exists
