@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: 'Gestionale turni Show Hive',
   icons: {
     icon: '/icon.svg',
-    apple: '/icon.svg',
+    apple: '/apple-touch-icon.png',
   },
 }
 
