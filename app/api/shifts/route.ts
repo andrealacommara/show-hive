@@ -19,6 +19,8 @@ export async function POST(request: Request) {
     const body = await request.json()
     const supabase = await createClient()
     const admin = createAdminClient()
+    const assignees: string[] = Array.isArray(body.assignees) ? body.assignees : []
+    const assignedTo = assignees[0] || null
 
     // Get current user
     const {
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
         start_time: body.start_time,
         end_time: body.end_time,
         created_by: user.id,
+        assigned_to: assignedTo,
       })
       .select("*")
       .single()
@@ -51,7 +54,6 @@ export async function POST(request: Request) {
     if (shiftError) throw shiftError
 
     // Insert assignees (if any)
-    const assignees: string[] = Array.isArray(body.assignees) ? body.assignees : []
     if (assignees.length > 0) {
       const rows = assignees.map((assigneeId) => ({ shift_id: shift.id, user_id: assigneeId }))
       const { error: assignError } = await supabase.from("shift_assignees").upsert(rows)

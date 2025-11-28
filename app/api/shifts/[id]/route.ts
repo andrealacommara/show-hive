@@ -34,13 +34,13 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Delete from Google Calendar if exists
+    // Delete from Google Calendar if exists; fail fast if Calendar delete fails to avoid orphan events
     if (shift.google_calendar_event_id) {
       try {
         await deleteGoogleCalendarEvent(shift.google_calendar_event_id)
       } catch (calendarError) {
         console.error("[app] Calendar event deletion failed:", calendarError)
-        // Continue even if calendar deletion fails
+        return NextResponse.json({ error: "Failed to delete calendar event" }, { status: 502 })
       }
     }
 
