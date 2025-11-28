@@ -203,7 +203,7 @@ export function CreateShiftDialog({ venues, users, currentUserId }: CreateShiftD
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-4">
             <div className="space-y-2">
               <Label htmlFor="start">Ora Inizio</Label>
               <Input
