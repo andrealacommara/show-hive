@@ -2,41 +2,38 @@ import { calendar_v3, google } from "googleapis"
 
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar"
 
-type ServiceAccountKey = {
-  client_email: string
-  private_key: string
+type OAuthEnv = {
+  clientId: string
+  clientSecret: string
+  refreshToken: string
 }
 
 let cachedCalendar: calendar_v3.Calendar | null = null
-let cachedAuth: InstanceType<typeof google.auth.JWT> | null = null
+let cachedAuth: InstanceType<typeof google.auth.OAuth2> | null = null
 
-function loadServiceAccountKey(): ServiceAccountKey {
-  const rawKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY
+function loadOAuthEnv(): OAuthEnv {
+  const clientId = process.env.ADMIN_GOOGLE_CLIENT_ID
+  const clientSecret = process.env.ADMIN_GOOGLE_CLIENT_SECRET
+  const refreshToken = process.env.ADMIN_GOOGLE_REFRESH_TOKEN
 
-  if (!rawKey) {
-    throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_KEY")
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error("Missing Google OAuth env: ADMIN_GOOGLE_CLIENT_ID / ADMIN_GOOGLE_CLIENT_SECRET / ADMIN_GOOGLE_REFRESH_TOKEN")
   }
 
-  const parsed = JSON.parse(rawKey) as Partial<ServiceAccountKey>
-  const client_email = parsed.client_email
-  const private_key = (parsed.private_key || "").replace(/\\n/g, "\n")
-
-  if (!client_email || !private_key) {
-    throw new Error("Invalid GOOGLE_SERVICE_ACCOUNT_KEY: client_email or private_key missing")
-  }
-
-  return { client_email, private_key }
+  return { clientId, clientSecret, refreshToken }
 }
 
 function getAuthClient() {
   if (cachedAuth) return cachedAuth
 
-  const { client_email, private_key } = loadServiceAccountKey()
-  cachedAuth = new google.auth.JWT({
-    email: client_email,
-    key: private_key,
-    scopes: [CALENDAR_SCOPE],
+  const { clientId, clientSecret, refreshToken } = loadOAuthEnv()
+  const oauth = new google.auth.OAuth2({
+    clientId,
+    clientSecret,
   })
+
+  oauth.setCredentials({ refresh_token: refreshToken, scope: CALENDAR_SCOPE })
+  cachedAuth = oauth
 
   return cachedAuth
 }
