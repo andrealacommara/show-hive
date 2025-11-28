@@ -25,8 +25,6 @@ export async function GET(request: Request) {
         email: user.email,
         full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
         avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
-        google_calendar_token: session.provider_token,
-        google_refresh_token: session.provider_refresh_token,
       })
 
       // Bootstrap first admin if none exists

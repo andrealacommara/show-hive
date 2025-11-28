@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
-import { createGoogleCalendarEvent, getUserCalendarAccessToken } from "@/lib/google-calendar"
+import { createGoogleCalendarEvent } from "@/lib/google-calendar"
 import { requireAllowed } from "@/lib/authz"
 
 function buildDateTime(date: string, time: string) {
@@ -71,21 +71,9 @@ export async function POST(request: Request) {
       .eq("id", shift.id)
       .single()
 
-    // If shift is assigned to someone, create Google Calendar event
+    // If shift is assigned to someone, create Google Calendar event on the central calendar
     if (assignees.length > 0) {
       try {
-        // Prefer adding the event on the assigned user's calendar; fallback to the creator
-        let calendarOwnerId = assignees[0]
-        let accessToken: string | null = null
-
-        try {
-          accessToken = await getUserCalendarAccessToken(calendarOwnerId)
-        } catch (userTokenError) {
-          console.warn("[app] Assigned user has no Google token, using creator tokens instead", userTokenError)
-          accessToken = await getUserCalendarAccessToken(user.id)
-          calendarOwnerId = user.id
-        }
-
         // Format datetime for Google Calendar (handle overnight shifts)
         const startDateTime = buildDateTime(shift.shift_date, shift.start_time)
         const endDateDate = shift.end_time <= shift.start_time ? addOneDay(shift.shift_date) : shift.shift_date
@@ -99,7 +87,7 @@ export async function POST(request: Request) {
           fullShift?.shift_assignees?.map((a) => (a.user?.email ? { email: a.user.email } : null)).filter(Boolean) ||
           []
 
-        const calendarEvent = await createGoogleCalendarEvent(accessToken, {
+        const calendarEvent = await createGoogleCalendarEvent({
           summary: shift.title,
           description: shift.description || "",
           location,
@@ -115,14 +103,10 @@ export async function POST(request: Request) {
         })
 
         // Update shift with calendar event ID
-        await supabase
-          .from("shifts")
-          .update({ google_calendar_event_id: calendarEvent.id, calendar_owner_id: calendarOwnerId })
-          .eq("id", shift.id)
+        await supabase.from("shifts").update({ google_calendar_event_id: calendarEvent.id }).eq("id", shift.id)
 
         if (fullShift) {
           fullShift.google_calendar_event_id = calendarEvent.id
-          fullShift.calendar_owner_id = calendarOwnerId
         }
       } catch (calendarError) {
         console.error("[app] Calendar event creation failed:", calendarError)

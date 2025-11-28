@@ -4,8 +4,6 @@ create table if not exists public.profiles (
   email text not null,
   full_name text,
   avatar_url text,
-  google_calendar_token text,
-  google_refresh_token text,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
@@ -66,7 +64,6 @@ create table if not exists public.shifts (
   start_time time not null,
   end_time time not null,
   google_calendar_event_id text,
-  calendar_owner_id uuid references auth.users(id) on delete set null,
   created_by uuid references auth.users(id) on delete cascade,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
@@ -98,11 +95,7 @@ create policy "shifts_delete_own"
 create index if not exists shifts_venue_id_idx on public.shifts(venue_id);
 create index if not exists shifts_assigned_to_idx on public.shifts(assigned_to);
 create index if not exists shifts_shift_date_idx on public.shifts(shift_date);
-create index if not exists shifts_calendar_owner_idx on public.shifts(calendar_owner_id);
 create index if not exists venues_created_by_idx on public.venues(created_by);
-
--- Ensure calendar owner column exists when migrating an existing DB
-alter table public.shifts add column if not exists calendar_owner_id uuid references auth.users(id) on delete set null;
 
 -- Create shift_assignees table for multiple assignees
 create table if not exists public.shift_assignees (

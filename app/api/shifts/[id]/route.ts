@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-import { deleteGoogleCalendarEvent, getUserCalendarAccessToken } from "@/lib/google-calendar"
+import { deleteGoogleCalendarEvent } from "@/lib/google-calendar"
 import { requireAllowed } from "@/lib/authz"
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +22,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     // Get shift to check if it has a calendar event
     const { data: shift } = await supabase
       .from("shifts")
-      .select("google_calendar_event_id, created_by, calendar_owner_id")
+      .select("google_calendar_event_id, created_by")
       .eq("id", id)
       .single()
 
@@ -37,18 +37,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     // Delete from Google Calendar if exists
     if (shift.google_calendar_event_id) {
       try {
-        let calendarOwnerId = shift.calendar_owner_id || shift.assigned_to || user.id
-        let accessToken: string | null = null
-
-        try {
-          accessToken = await getUserCalendarAccessToken(calendarOwnerId)
-        } catch (tokenError) {
-          console.warn("[app] Calendar owner has no token, using current user token", tokenError)
-          accessToken = await getUserCalendarAccessToken(user.id)
-          calendarOwnerId = user.id
-        }
-
-        await deleteGoogleCalendarEvent(accessToken, shift.google_calendar_event_id)
+        await deleteGoogleCalendarEvent(shift.google_calendar_event_id)
       } catch (calendarError) {
         console.error("[app] Calendar event deletion failed:", calendarError)
         // Continue even if calendar deletion fails
