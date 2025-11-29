@@ -10,6 +10,24 @@ function addOneDay(date: string) {
   return d.toISOString().slice(0, 10)
 }
 
+async function getUnavailableAssignees(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  assignees: string[],
+  date: string,
+) {
+  if (!assignees.length) return []
+
+  const { data, error } = await supabase
+    .from("unavailabilities")
+    .select("user_id, user:profiles(full_name, email)")
+    .in("user_id", assignees)
+    .lte("start_date", date)
+    .gte("end_date", date)
+
+  if (error) throw error
+  return data || []
+}
+
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
@@ -28,7 +46,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     await requireAllowed(user.email)
 
     // Determine role
-    const { data: access } = await supabase.from("allowed_users").select("role").eq("email", user.email).maybeSingle()
+    const { data: access } = await admin.from("allowed_users").select("role").eq("email", user.email).maybeSingle()
 
     // Get shift to check permissions and keep data for potential rollback (admin client bypasses RLS)
     const { data: shift } = await admin
@@ -41,14 +59,15 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "Shift not found" }, { status: 404 })
     }
 
+    const isAdmin = access?.role === "admin"
     const isAssignee =
       shift.assigned_to === user.id ||
       (Array.isArray(shift.shift_assignees) && shift.shift_assignees.some((sa: any) => sa?.user_id === user.id))
 
-    const isAdmin = access?.role === "admin"
-
-    if (!isAdmin && shift.created_by !== user.id && !isAssignee) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (!isAdmin) {
+      if (shift.created_by !== user.id && !isAssignee) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
     }
 
     // Delete shift from database first (admin to allow assignees)
@@ -88,6 +107,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const { id } = await params
     const body = await request.json()
     const supabase = await createClient()
+    const admin = createAdminClient()
 
     const {
       data: { user },
@@ -105,7 +125,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .eq("email", user.email)
       .maybeSingle()
 
-    const { data: existingShift } = await supabase
+    const { data: existingShift } = await admin
       .from("shifts")
       .select(
         `
@@ -132,7 +152,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const assignees: string[] = Array.isArray(body.assignees) ? body.assignees : []
     const assignedTo = assignees[0] || null
 
-    const { error: updateError } = await supabase
+    const unavailable = await getUnavailableAssignees(supabase, assignees, body.shift_date)
+    if (unavailable.length > 0) {
+      const names = unavailable
+        .map((u: any) => u.user?.full_name || u.user?.email || "Utente")
+        .filter(Boolean)
+        .join(", ")
+      return NextResponse.json(
+        { error: `Indisponibile in questa data: ${names}` },
+        { status: 400 },
+      )
+    }
+
+    const { error: updateError } = await admin
       .from("shifts")
       .update({
         title: body.title,
@@ -148,14 +180,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (updateError) throw updateError
 
     // Replace assignees
-    await supabase.from("shift_assignees").delete().eq("shift_id", id)
+    await admin.from("shift_assignees").delete().eq("shift_id", id)
     if (assignees.length > 0) {
       const rows = assignees.map((assigneeId) => ({ shift_id: id, user_id: assigneeId }))
-      await supabase.from("shift_assignees").upsert(rows)
+      await admin.from("shift_assignees").upsert(rows)
     }
 
     // Reload with relations for calendar payload
-    const { data: fullShift } = await supabase
+    const { data: fullShift } = await admin
       .from("shifts")
       .select(
         `

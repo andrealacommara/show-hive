@@ -14,6 +14,24 @@ function addOneDay(date: string) {
   return d.toISOString().slice(0, 10)
 }
 
+async function getUnavailableAssignees(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  assignees: string[],
+  date: string,
+) {
+  if (!assignees.length) return []
+
+  const { data, error } = await supabase
+    .from("unavailabilities")
+    .select("user_id, user:profiles(full_name, email)")
+    .in("user_id", assignees)
+    .lte("start_date", date)
+    .gte("end_date", date)
+
+  if (error) throw error
+  return data || []
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -33,6 +51,18 @@ export async function POST(request: Request) {
     }
 
     await requireAllowed(user.email)
+
+    const unavailable = await getUnavailableAssignees(supabase, assignees, body.shift_date)
+    if (unavailable.length > 0) {
+      const names = unavailable
+        .map((u: any) => u.user?.full_name || u.user?.email || "Utente")
+        .filter(Boolean)
+        .join(", ")
+      return NextResponse.json(
+        { error: `Indisponibile in questa data: ${names}` },
+        { status: 400 },
+      )
+    }
 
     // Create shift in database
     // Insert shift

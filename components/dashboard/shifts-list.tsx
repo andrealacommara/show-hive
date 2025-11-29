@@ -11,10 +11,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Clock, MapPin, User, Calendar, Filter, Pencil } from "lucide-react";
-import { format, startOfDay, isSameDay } from "date-fns";
+import { format, startOfDay, isSameDay, isWithinInterval } from "date-fns";
 import { it } from "date-fns/locale";
 import { CreateShiftDialog } from "./create-shift-dialog";
 import { EditShiftDialog } from "./edit-shift-dialog";
+import { MarkUnavailableDialog } from "./mark-unavailable-dialog";
 
 interface Shift {
   id: string;
@@ -43,6 +44,13 @@ interface ShiftsListProps {
   users: any[];
   currentUserId: string;
   isAdmin?: boolean;
+  unavailabilities?: {
+    id: string;
+    start_date: string;
+    end_date: string;
+    reason?: string;
+    user?: { id: string; full_name?: string; email?: string };
+  }[];
   selectedDate?: Date | null;
   onClearDate?: () => void;
 }
@@ -53,6 +61,7 @@ export function ShiftsList({
   users,
   currentUserId,
   isAdmin = false,
+  unavailabilities = [],
   selectedDate,
   onClearDate,
 }: ShiftsListProps) {
@@ -103,6 +112,16 @@ export function ShiftsList({
     localShifts,
   ]);
 
+  const unavailableOnSelectedDay = useMemo(() => {
+    if (!selectedDate) return [];
+    return unavailabilities.filter((unav) =>
+      isWithinInterval(selectedDate, {
+        start: new Date(unav.start_date),
+        end: new Date(unav.end_date),
+      })
+    );
+  }, [selectedDate, unavailabilities]);
+
   const handleDeleted = (id: string) => {
     setLocalShifts((prev) => prev.filter((s) => s.id !== id));
   };
@@ -110,17 +129,33 @@ export function ShiftsList({
   return (
     <Card>
       <CardHeader className="space-y-4">
-        <div className="flex flex-row gap-3 ">
-          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-            <Calendar className="h-5 w-5" />
-            Eventi
-          </CardTitle>
-          <div className="ml-auto">
-            <CreateShiftDialog
-              venues={venues}
-              users={users}
-              currentUserId={currentUserId}
-            />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Calendar className="h-5 w-5" />
+              Eventi
+            </CardTitle>
+            <div className="hidden sm:flex gap-2">
+              <CreateShiftDialog
+                shifts={shifts}
+                venues={venues}
+                users={users}
+                unavailabilities={unavailabilities}
+                currentUserId={currentUserId}
+              />
+            </div>
+            <div className="sm:hidden">
+              <CreateShiftDialog
+                shifts={shifts}
+                venues={venues}
+                users={users}
+                unavailabilities={unavailabilities}
+                currentUserId={currentUserId}
+              />
+            </div>
+          </div>
+          <div className="flex w-full justify-center">
+            <MarkUnavailableDialog unavailabilities={unavailabilities} currentUserId={currentUserId} />
           </div>
         </div>
         {selectedDate && (
@@ -137,6 +172,17 @@ export function ShiftsList({
                 Mostra tutti
               </button>
             )}
+          </div>
+        )}
+        {selectedDate && unavailableOnSelectedDay.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+            <span className="font-semibold">Indisponibili:</span>
+            {unavailableOnSelectedDay.map((unav) => (
+              <Badge key={unav.id} variant="outline" className="text-amber-800 border-amber-300">
+                {unav.user?.full_name || unav.user?.email || "Utente"}
+                {unav.reason ? ` · ${unav.reason}` : ""}
+              </Badge>
+            ))}
           </div>
         )}
         <div className="grid w-full gap-3 sm:grid-cols-[auto,1fr,1fr] items-center">
@@ -213,6 +259,7 @@ export function ShiftsList({
                         shift={shift as any}
                         venues={venues}
                         users={users}
+                        unavailabilities={unavailabilities}
                         onDeleted={handleDeleted}
                       >
                         <button

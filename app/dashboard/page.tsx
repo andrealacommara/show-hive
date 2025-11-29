@@ -44,6 +44,10 @@ export default async function DashboardPage() {
 
   const { data: venues } = await admin.from("venues").select("*").order("name", { ascending: true })
   const { data: members } = await admin.from("allowed_users").select("*").order("email", { ascending: true })
+  const { data: unavailabilities } = await admin
+    .from("unavailabilities")
+    .select("id, start_date, end_date, reason, user:profiles(id, full_name, email)")
+    .order("start_date", { ascending: true })
 
   return (
     <DashboardView
@@ -54,6 +58,7 @@ export default async function DashboardPage() {
       users={allUsers || []}
       members={members || []}
       isAdmin={access?.role === "admin"}
+      unavailabilities={unavailabilities || []}
     />
   )
 }

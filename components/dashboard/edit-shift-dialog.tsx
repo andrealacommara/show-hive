@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -39,9 +39,15 @@ interface EditShiftDialogProps {
   users: User[]
   children: React.ReactNode
   onDeleted?: (id: string) => void
+  unavailabilities?: {
+    id: string
+    start_date: string
+    end_date: string
+    user?: { id: string; full_name?: string; email?: string }
+  }[]
 }
 
-export function EditShiftDialog({ shift, venues, users, children, onDeleted }: EditShiftDialogProps) {
+export function EditShiftDialog({ shift, venues, users, children, onDeleted, unavailabilities = [] }: EditShiftDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -55,6 +61,21 @@ export function EditShiftDialog({ shift, venues, users, children, onDeleted }: E
     end_time: shift.end_time,
     assignees: (shift.shift_assignees || []).map((a) => a.user.id),
   })
+  const [error, setError] = useState<string | null>(null)
+
+  const unavailableMap = useMemo(() => {
+    if (!formData.shift_date) return new Set<string>()
+    const day = new Date(formData.shift_date)
+    const set = new Set<string>()
+    unavailabilities.forEach((u) => {
+      const start = new Date(u.start_date)
+      const end = new Date(u.end_date)
+      if (day >= start && day <= end && u.user?.id) {
+        set.add(u.user.id)
+      }
+    })
+    return set
+  }, [formData.shift_date, unavailabilities])
 
   const toggleAssignee = (id: string) => {
     setFormData((prev) => ({
@@ -87,6 +108,7 @@ export function EditShiftDialog({ shift, venues, users, children, onDeleted }: E
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     setIsLoading(true)
     try {
       const res = await fetch(`/api/shifts/${shift.id}`, {
@@ -94,12 +116,15 @@ export function EditShiftDialog({ shift, venues, users, children, onDeleted }: E
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       })
-      if (!res.ok) throw new Error("Update failed")
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Update failed")
+      }
       setOpen(false)
       router.refresh()
     } catch (error) {
       console.error("Update shift failed", error)
-      alert("Impossibile aggiornare il turno")
+      setError((error as Error).message || "Impossibile aggiornare il turno")
     } finally {
       setIsLoading(false)
     }
@@ -164,10 +189,18 @@ export function EditShiftDialog({ shift, venues, users, children, onDeleted }: E
                         onClick={() => toggleAssignee(user.id)}
                         className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm ${
                           selected ? "border-primary bg-primary/5" : "hover:bg-muted"
-                        }`}
+                        } ${unavailableMap.has(user.id) && formData.shift_date ? "opacity-50 cursor-not-allowed" : ""}`}
+                        disabled={unavailableMap.has(user.id) && formData.shift_date.length > 0}
                       >
                         <span>{user.full_name || user.email}</span>
-                        {selected && <Badge variant="secondary">Selezionato</Badge>}
+                        <div className="flex items-center gap-2">
+                          {unavailableMap.has(user.id) && formData.shift_date && (
+                            <Badge variant="destructive" className="text-[10px]">
+                              ND
+                            </Badge>
+                          )}
+                          {selected && <Badge variant="secondary">Selezionato</Badge>}
+                        </div>
                       </button>
                     )
                   })}
@@ -195,6 +228,8 @@ export function EditShiftDialog({ shift, venues, users, children, onDeleted }: E
               required
             />
           </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

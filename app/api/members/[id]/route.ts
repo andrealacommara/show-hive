@@ -44,6 +44,17 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     await requireAdmin(user?.email)
 
     const admin = createAdminClient()
+    const { data: member, error: fetchError } = await admin.from("allowed_users").select("email").eq("id", id).maybeSingle()
+    if (fetchError) throw fetchError
+
+    // Delete unavailabilities linked to this collaborator's profile (if found)
+    if (member?.email) {
+      const { data: profile } = await admin.from("profiles").select("id").eq("email", member.email).maybeSingle()
+      if (profile?.id) {
+        await admin.from("unavailabilities").delete().eq("user_id", profile.id)
+      }
+    }
+
     const { error } = await admin.from("allowed_users").delete().eq("id", id)
     if (error) throw error
 

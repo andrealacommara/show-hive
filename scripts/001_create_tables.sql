@@ -127,3 +127,32 @@ create policy shift_assignees_modify_creator
 
 create index if not exists shift_assignees_user_id_idx on public.shift_assignees(user_id);
 create index if not exists shift_assignees_shift_id_idx on public.shift_assignees(shift_id);
+
+-- Unavailability (assenze) table
+create table if not exists public.unavailabilities (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  start_date date not null,
+  end_date date not null,
+  reason text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.unavailabilities enable row level security;
+
+-- Everyone can view unavailabilities (needed to pianificare i turni)
+drop policy if exists "unavailabilities_select_all" on public.unavailabilities;
+create policy "unavailabilities_select_all"
+  on public.unavailabilities for select
+  using (true);
+
+-- Users can insert/update/delete only their own periods
+drop policy if exists "unavailabilities_manage_own" on public.unavailabilities;
+create policy "unavailabilities_manage_own"
+  on public.unavailabilities for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists unavailabilities_user_id_idx on public.unavailabilities(user_id);
+create index if not exists unavailabilities_start_end_idx on public.unavailabilities(start_date, end_date);
