@@ -46,6 +46,20 @@ export function MarkUnavailableDialog({ unavailabilities, currentUserId }: Props
     [unavailabilities, currentUserId],
   )
 
+  const today = useMemo(() => {
+    const now = new Date()
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  }, [])
+
+  const activeOrUpcomingUnavailabilities = useMemo(() => {
+    const toDate = (value: string) => {
+      const [year, month, day] = value.split("-").map(Number)
+      return new Date(year, (month ?? 1) - 1, day ?? 1)
+    }
+
+    return myUnavailabilities.filter((item) => toDate(item.end_date) >= today)
+  }, [myUnavailabilities, today])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -182,11 +196,11 @@ export function MarkUnavailableDialog({ unavailabilities, currentUserId }: Props
           </div>
         </form>
 
-        {myUnavailabilities.length > 0 && (
+        {activeOrUpcomingUnavailabilities.length > 0 && (
           <div className="space-y-2 border-t pt-3 mt-3">
             <h4 className="text-sm font-semibold">Le mie indisponibilità</h4>
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {myUnavailabilities.map((item) => (
+              {activeOrUpcomingUnavailabilities.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-start justify-between gap-2 rounded-md border bg-muted/60 px-2 py-2"
