@@ -7,25 +7,25 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Users, Shield } from "lucide-react"
-
-interface Member {
-  id: string
-  email: string
-  role: "admin" | "member"
-  created_at?: string
-}
+import { toast } from "sonner"
+import type { Member } from "@/types"
 
 interface MembersCardProps {
   members: Member[]
   currentUserEmail: string
   profiles: { email: string; full_name?: string }[]
+  isAdmin?: boolean
+  isDemo?: boolean
 }
 
-export function MembersCard({ members: initialMembers, currentUserEmail, profiles }: MembersCardProps) {
+export function MembersCard({ members: initialMembers, currentUserEmail, profiles, isAdmin: isAdminProp, isDemo = false }: MembersCardProps) {
   const [members, setMembers] = useState<Member[]>(initialMembers)
   const [email, setEmail] = useState("")
   const [role, setRole] = useState<Member["role"]>("member")
   const [loading, setLoading] = useState(false)
+
+  const notifyDemo = () =>
+    toast.info("Modalità demo", { description: "Le modifiche non vengono salvate in demo." })
 
   useEffect(() => {
     setMembers(initialMembers)
@@ -33,6 +33,7 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
 
   const handleAdd = async () => {
     if (!email) return
+    if (isDemo) { notifyDemo(); setEmail(""); return }
     setLoading(true)
     try {
       const res = await fetch("/api/members", {
@@ -59,6 +60,7 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
   }
 
   const handleDelete = async (id: string) => {
+    if (isDemo) { notifyDemo(); return }
     const member = members.find((m) => m.id === id)
     if (!member) return
     if (!confirm(`Rimuovere ${member.email}?`)) return
@@ -76,6 +78,7 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
   }
 
   const handleRoleChange = async (id: string, nextRole: Member["role"]) => {
+    if (isDemo) { notifyDemo(); return }
     setLoading(true)
     try {
       const res = await fetch(`/api/members/${id}`, {
@@ -95,7 +98,7 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
 
   const adminCount = members.filter((m) => m.role === "admin").length
   const emailToName = new Map(profiles.map((p) => [p.email.toLowerCase(), p.full_name || ""]))
-  const isAdmin = members.some((m) => m.email === currentUserEmail && m.role === "admin")
+  const isAdmin = isAdminProp ?? members.some((m) => m.email === currentUserEmail && m.role === "admin")
 
   return (
     <Card>
@@ -106,6 +109,7 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {(isAdmin || isDemo) && (
         <div className="flex flex-col gap-2">
           <Input
             placeholder="email@show-hive.com"
@@ -128,6 +132,7 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
             </Button>
           </div>
         </div>
+        )}
 
         <div className="space-y-3">
           {members.length === 0 && <p className="text-sm text-muted-foreground">Nessun collaboratore ancora.</p>}
@@ -160,12 +165,12 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
                       </SelectContent>
                     </Select>
                   </div>
-                  {isAdmin && removable && (
+                  {(isAdmin || isDemo) && removable && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="min-w-[90px]"
+                      className="min-w-22.5"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleDelete(member.id)

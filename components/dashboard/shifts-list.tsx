@@ -10,49 +10,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Clock, MapPin, User, Calendar, Filter, Pencil } from "lucide-react";
+import { Clock, MapPin, User as UserIcon, Calendar, Filter, Pencil } from "lucide-react";
 import { format, startOfDay, isSameDay, isWithinInterval } from "date-fns";
 import { it } from "date-fns/locale";
 import { CreateShiftDialog } from "./create-shift-dialog";
 import { EditShiftDialog } from "./edit-shift-dialog";
 import { MarkUnavailableDialog } from "./mark-unavailable-dialog";
-
-interface Shift {
-  id: string;
-  title: string;
-  description?: string;
-  shift_date: string;
-  start_time: string;
-  end_time: string;
-  venue_id: string;
-  venue?: { id: string; name: string; address?: string; city?: string };
-  assigned_user?: { id: string; full_name?: string; email?: string };
-  shift_assignees?: {
-    user: { id: string; full_name?: string; email?: string };
-  }[];
-  google_calendar_event_id?: string;
-}
-
-interface Venue {
-  id: string;
-  name: string;
-}
+import { toast } from "sonner";
+import type { Shift, Venue, User, Unavailability } from "@/types";
 
 interface ShiftsListProps {
   shifts: Shift[];
   venues: Venue[];
-  users: any[];
+  users: User[];
   currentUserId: string;
   isAdmin?: boolean;
-  unavailabilities?: {
-    id: string;
-    start_date: string;
-    end_date: string;
-    reason?: string;
-    user?: { id: string; full_name?: string; email?: string };
-  }[];
+  unavailabilities?: Unavailability[];
   selectedDate?: Date | null;
   onClearDate?: () => void;
+  isDemo?: boolean;
 }
 
 export function ShiftsList({
@@ -64,10 +40,14 @@ export function ShiftsList({
   unavailabilities = [],
   selectedDate,
   onClearDate,
+  isDemo = false,
 }: ShiftsListProps) {
   const [selectedVenue, setSelectedVenue] = useState<string | "all">("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [localShifts, setLocalShifts] = useState<Shift[]>(shifts);
+
+  const notifyDemo = () =>
+    toast.info("Modalità demo", { description: "Le modifiche non vengono salvate in demo." });
 
   useEffect(() => {
     setLocalShifts(shifts);
@@ -136,26 +116,44 @@ export function ShiftsList({
               Eventi
             </CardTitle>
             <div className="hidden sm:flex gap-2">
-              <CreateShiftDialog
-                shifts={shifts}
-                venues={venues}
-                users={users}
-                unavailabilities={unavailabilities}
-                currentUserId={currentUserId}
-              />
+              {isDemo ? (
+                <button type="button" onClick={notifyDemo} className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border border-dashed text-muted-foreground hover:bg-accent transition-colors">
+                  + Nuovo turno
+                </button>
+              ) : (
+                <CreateShiftDialog
+                  shifts={shifts}
+                  venues={venues}
+                  users={users}
+                  unavailabilities={unavailabilities}
+                  currentUserId={currentUserId}
+                />
+              )}
             </div>
             <div className="sm:hidden">
-              <CreateShiftDialog
-                shifts={shifts}
-                venues={venues}
-                users={users}
-                unavailabilities={unavailabilities}
-                currentUserId={currentUserId}
-              />
+              {isDemo ? (
+                <button type="button" onClick={notifyDemo} className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border border-dashed text-muted-foreground hover:bg-accent transition-colors">
+                  + Nuovo turno
+                </button>
+              ) : (
+                <CreateShiftDialog
+                  shifts={shifts}
+                  venues={venues}
+                  users={users}
+                  unavailabilities={unavailabilities}
+                  currentUserId={currentUserId}
+                />
+              )}
             </div>
           </div>
           <div className="flex w-full justify-center">
-            <MarkUnavailableDialog unavailabilities={unavailabilities} currentUserId={currentUserId} />
+            {isDemo ? (
+              <button type="button" onClick={notifyDemo} className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border border-dashed text-muted-foreground hover:bg-accent transition-colors w-full justify-center">
+                Segnala indisponibilità
+              </button>
+            ) : (
+              <MarkUnavailableDialog unavailabilities={unavailabilities} currentUserId={currentUserId} />
+            )}
           </div>
         </div>
         {selectedDate && (
@@ -251,7 +249,16 @@ export function ShiftsList({
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {(isAdmin ||
+                    {isDemo ? (
+                      <button
+                        type="button"
+                        onClick={notifyDemo}
+                        className="rounded p-2 hover:bg-accent text-muted-foreground"
+                        aria-label="Modifica turno"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    ) : (isAdmin ||
                       (shift.shift_assignees || []).some(
                         (a) => a.user?.id === currentUserId
                       )) && (
@@ -301,13 +308,15 @@ export function ShiftsList({
                   {shift.shift_assignees &&
                     shift.shift_assignees.length > 0 && (
                       <div className="flex items-start gap-2 text-muted-foreground">
-                        <User className="h-4 w-4 mt-0.5" />
+                        <UserIcon className="h-4 w-4 mt-0.5" />
                         <div className="flex flex-wrap gap-2">
-                          {shift.shift_assignees.map(({ user }) => (
-                            <Badge key={user.id} variant="secondary">
-                              {user.full_name || user.email}
-                            </Badge>
-                          ))}
+                          {shift.shift_assignees
+                            .filter((assignee) => assignee.user)
+                            .map(({ user }) => (
+                              <Badge key={user!.id} variant="secondary">
+                                {user!.full_name || user!.email}
+                              </Badge>
+                            ))}
                         </div>
                       </div>
                     )}

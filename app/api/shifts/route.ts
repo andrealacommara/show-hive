@@ -3,9 +3,47 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 import { createGoogleCalendarEvent } from "@/lib/google-calendar"
 import { requireAllowed } from "@/lib/authz"
+import type { User } from "@/types"
+
+function toErrorResponse(error: unknown) {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = String(error.message || "Failed to create shift")
+    const code = "code" in error ? String(error.code || "") : ""
+
+    if (message === "Unauthorized") {
+      return { error: "Unauthorized", status: 401 }
+    }
+    if (message === "Forbidden") {
+      return { error: "Forbidden", status: 403 }
+    }
+
+    // PostgreSQL / PostgREST errors are usually client-side input or constraint issues.
+    if (code.startsWith("22") || code.startsWith("23") || code === "PGRST116") {
+      return { error: message, status: 400 }
+    }
+
+    return { error: message, status: 500 }
+  }
+
+  return { error: "Failed to create shift", status: 500 }
+}
 
 function buildDateTime(date: string, time: string) {
   return `${date}T${time}`
+}
+
+type ShiftWithRelations = {
+  venue?: {
+    name?: string | null
+    address?: string | null
+    city?: string | null
+  } | null
+  shift_assignees?: {
+    user?: {
+      email?: string | null
+    } | null
+  }[] | null
+  google_calendar_event_id?: string | null
 }
 
 function addOneDay(date: string) {
@@ -36,7 +74,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const supabase = await createClient()
-    const admin = createAdminClient()
     const assignees: string[] = Array.isArray(body.assignees) ? body.assignees : []
     const assignedTo = assignees[0] || null
 
@@ -55,7 +92,7 @@ export async function POST(request: Request) {
     const unavailable = await getUnavailableAssignees(supabase, assignees, body.shift_date)
     if (unavailable.length > 0) {
       const names = unavailable
-        .map((u: any) => u.user?.full_name || u.user?.email || "Utente")
+        .map((u) => (u.user as User | undefined)?.full_name || (u.user as User | undefined)?.email || "Utente")
         .filter(Boolean)
         .join(", ")
       return NextResponse.json(
@@ -90,18 +127,25 @@ export async function POST(request: Request) {
       if (assignError) throw assignError
     }
 
-    // Reload shift with relations
-    const { data: fullShift } = await admin
-      .from("shifts")
-      .select(
-        `
-        *,
-        venue:venues(*),
-        shift_assignees:shift_assignees(user:profiles(id, full_name, email))
-      `,
-      )
-      .eq("id", shift.id)
-      .single()
+    // Reload shift with relations. If admin env/config is missing, don't fail creation.
+    let fullShift: ShiftWithRelations | null = null
+    try {
+      const admin = createAdminClient()
+      const { data } = await admin
+        .from("shifts")
+        .select(
+          `
+          *,
+          venue:venues(*),
+          shift_assignees:shift_assignees(user:profiles(id, full_name, email))
+        `,
+        )
+        .eq("id", shift.id)
+        .single()
+      fullShift = data
+    } catch (reloadError) {
+      console.error("[app] Failed to reload shift with relations:", reloadError)
+    }
 
     // If shift is assigned to someone, create Google Calendar event on the central calendar
     if (assignees.length > 0) {
@@ -154,6 +198,7 @@ export async function POST(request: Request) {
     return NextResponse.json(fullShift || shift)
   } catch (error) {
     console.error("[app] Error creating shift:", error)
-    return NextResponse.json({ error: "Failed to create shift" }, { status: 500 })
+    const apiError = toErrorResponse(error)
+    return NextResponse.json({ error: apiError.error }, { status: apiError.status })
   }
 }

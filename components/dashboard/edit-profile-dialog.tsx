@@ -63,7 +63,7 @@ export function EditProfileDialog({ fullName, children }: EditProfileDialogProps
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-100">
         <DialogHeader>
           <DialogTitle>Modifica profilo</DialogTitle>
           <DialogDescription>Aggiorna nome e cognome visibili in dashboard e calendar.</DialogDescription>

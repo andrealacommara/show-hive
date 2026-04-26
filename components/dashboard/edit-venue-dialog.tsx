@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+import { toast } from "sonner"
+
 type Venue = {
   id: string
   name: string
@@ -18,9 +20,10 @@ interface EditVenueDialogProps {
   venue: Venue
   onUpdated?: () => void
   children: ReactNode
+  isDemo?: boolean
 }
 
-export function EditVenueDialog({ venue, onUpdated, children }: EditVenueDialogProps) {
+export function EditVenueDialog({ venue, onUpdated, children, isDemo = false }: EditVenueDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -32,6 +35,13 @@ export function EditVenueDialog({ venue, onUpdated, children }: EditVenueDialogP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isDemo) {
+      toast.info("Modalità demo", { description: "Le modifiche non vengono salvate in demo." })
+      setOpen(false)
+      return
+    }
+
     setIsLoading(true)
     try {
       const payload = {
@@ -64,7 +74,7 @@ export function EditVenueDialog({ venue, onUpdated, children }: EditVenueDialogP
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-106.25">
         <DialogHeader>
           <DialogTitle>Modifica Locale</DialogTitle>
           <DialogDescription>Aggiorna i dettagli del locale</DialogDescription>

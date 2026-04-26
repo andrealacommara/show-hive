@@ -133,7 +133,7 @@ export function EditShiftDialog({ shift, venues, users, children, onDeleted, una
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[500px] max-h-[95vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-125 max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifica Turno</DialogTitle>
           <DialogDescription>Aggiorna dettagli, assegnazioni e orari.</DialogDescription>

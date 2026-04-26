@@ -17,11 +17,14 @@ import { Label } from "@/components/ui/label"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+import { toast } from "sonner"
+
 interface CreateVenueDialogProps {
   currentUserId: string
+  isDemo?: boolean
 }
 
-export function CreateVenueDialog({ currentUserId }: CreateVenueDialogProps) {
+export function CreateVenueDialog({ currentUserId, isDemo = false }: CreateVenueDialogProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -33,6 +36,14 @@ export function CreateVenueDialog({ currentUserId }: CreateVenueDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isDemo) {
+      toast.info("Modalità demo", { description: "Le modifiche non vengono salvate in demo." })
+      setOpen(false)
+      setFormData({ name: "", address: "", city: "" })
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -76,7 +87,7 @@ export function CreateVenueDialog({ currentUserId }: CreateVenueDialogProps) {
           Aggiungi
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-106.25">
         <DialogHeader>
           <DialogTitle>Aggiungi Locale</DialogTitle>
           <DialogDescription>Inserisci i dettagli del nuovo locale</DialogDescription>

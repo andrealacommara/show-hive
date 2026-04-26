@@ -7,46 +7,41 @@ import { VenuesList } from "./venues-list"
 import { MembersCard } from "./members-card"
 import { DashboardHeader } from "./dashboard-header"
 import { ShiftsTableView } from "./shifts-table-view"
-type User = { id: string; full_name?: string; email: string }
-type Venue = { id: string; name: string; address?: string; city?: string }
-type Shift = {
-  id: string
-  title: string
-  description?: string
-  shift_date: string
-  start_time: string
-  end_time: string
-  venue_id: string
-  venue?: { id: string; name: string; address?: string; city?: string }
-  shift_assignees?: { user: User }[]
-  google_calendar_event_id?: string
-}
-type Unavailability = {
-  id: string
-  start_date: string
-  end_date: string
-  reason?: string
-  user: User
-}
+import type { User, Profile, Venue, Shift, Unavailability, Member } from "@/types"
 
 interface DashboardViewProps {
-  user: any
-  profile: any
+  user: User
+  profile: Profile
   shifts: Shift[]
   venues: Venue[]
   users: User[]
-  members: any[]
+  members: Member[]
   isAdmin: boolean
   unavailabilities: Unavailability[]
+  isDemo?: boolean
 }
 
-export function DashboardView({ user, profile, shifts, venues, users, members, isAdmin, unavailabilities }: DashboardViewProps) {
+export function DashboardView({ user, profile, shifts, venues, users, members, isAdmin, unavailabilities, isDemo = false }: DashboardViewProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [calendarMode, setCalendarMode] = useState<"grid" | "table">("grid")
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader user={user} profile={profile} />
+      {isDemo && (
+        <div className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-amber-400 px-4 py-2 text-sm font-medium text-amber-900 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span>🧪</span>
+            <span>Modalità demo — i dati sono di esempio e le modifiche non vengono salvate</span>
+          </div>
+          <a
+            href="/auth/login"
+            className="shrink-0 rounded-md bg-amber-900 px-3 py-1 text-xs font-semibold text-amber-50 hover:bg-amber-800 transition-colors"
+          >
+            Accedi
+          </a>
+        </div>
+      )}
+      <DashboardHeader user={user} profile={profile} isDemo={isDemo} />
 
       <main className="w-full px-4 py-6 sm:px-6">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -91,13 +86,14 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
                   unavailabilities={unavailabilities}
                   selectedDate={selectedDate ?? undefined}
                   onClearDate={() => setSelectedDate(null)}
+                  isDemo={isDemo}
                 />
               </div>
             </div>
 
             <div className="space-y-6 w-full max-w-xl mx-auto">
               <div className="w-full">
-                <VenuesList venues={venues} currentUserId={user.id} isAdmin={isAdmin} />
+                <VenuesList venues={venues} currentUserId={user.id} isAdmin={isAdmin} isDemo={isDemo} />
               </div>
               <div className="w-full">
                 <MembersCard
@@ -105,6 +101,7 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
                   profiles={users || []}
                   currentUserEmail={user.email!}
                   isAdmin={isAdmin}
+                  isDemo={isDemo}
                 />
               </div>
             </div>

@@ -150,7 +150,7 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                 value={String(currentYear)}
                 onValueChange={(value) => setCurrentMonth((prev) => new Date(Number(value), prev.getMonth(), 1))}
               >
-                <SelectTrigger className="h-8 text-xs sm:text-sm whitespace-nowrap w-full max-w-[140px]">
+                <SelectTrigger className="h-8 text-xs sm:text-sm whitespace-nowrap w-full max-w-35">
                   <SelectValue placeholder={currentYear}>{currentYear}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -180,7 +180,7 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
             </Button>
             <div className="w-full sm:w-auto">
               <Select value={assigneeFilter} onValueChange={(v) => setAssigneeFilter(v)}>
-                <SelectTrigger className="h-8 text-xs sm:text-sm w-full sm:w-[200px]">
+                <SelectTrigger className="h-8 text-xs sm:text-sm w-full sm:w-50">
                   <SelectValue placeholder="Filtro utenti" />
                 </SelectTrigger>
                 <SelectContent>
@@ -240,7 +240,7 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                       {shift.venue?.name ? (
                         <div className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">
                           <MapPin className="h-3 w-3" />
-                          <span className="truncate max-w-[160px]">{shift.venue.name}</span>
+                          <span className="truncate max-w-40">{shift.venue.name}</span>
                         </div>
                       ) : (
                         "-"
@@ -317,7 +317,7 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                     <TableCell className="text-xs whitespace-nowrap">
                       {format(parseISO(item.end_date), "d MMM", { locale: it })}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[200px]">
+                    <TableCell className="text-xs text-muted-foreground max-w-50">
                       {item.reason || "—"}
                     </TableCell>
                   </TableRow>

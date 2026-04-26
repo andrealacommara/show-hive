@@ -18,13 +18,15 @@ interface VenuesListProps {
   venues: Venue[]
   currentUserId: string
   isAdmin?: boolean
+  isDemo?: boolean
 }
 
-export function VenuesList({ venues, currentUserId, isAdmin = false }: VenuesListProps) {
+export function VenuesList({ venues, currentUserId, isAdmin = false, isDemo = false }: VenuesListProps) {
   const router = useRouter()
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const handleDelete = async (venue: Venue) => {
+    if (isDemo) { return }
     if (!isAdmin) return
     if (!confirm(`Eliminare il locale "${venue.name}"?`)) return
     setBusyId(venue.id)
@@ -48,7 +50,7 @@ export function VenuesList({ venues, currentUserId, isAdmin = false }: VenuesLis
             <Building2 className="h-5 w-5" />
             Locali
           </CardTitle>
-          <CreateVenueDialog currentUserId={currentUserId} />
+          <CreateVenueDialog currentUserId={currentUserId} isDemo={isDemo} />
         </div>
       </CardHeader>
       <CardContent>
@@ -63,9 +65,9 @@ export function VenuesList({ venues, currentUserId, isAdmin = false }: VenuesLis
               <div key={venue.id} className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="font-medium mb-1">{venue.name}</h4>
-                  {isAdmin && (
+                  {(isAdmin || isDemo) && (
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <EditVenueDialog venue={venue} onUpdated={() => router.refresh()}>
+                      <EditVenueDialog venue={venue} onUpdated={() => router.refresh()} isDemo={isDemo}>
                         <button
                           type="button"
                           disabled={busyId === venue.id}

@@ -126,6 +126,33 @@ export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavai
     setError(null)
     setIsLoading(true)
 
+    // Validate required fields
+    if (!formData.title.trim()) {
+      setError("Il titolo è obbligatorio")
+      setIsLoading(false)
+      return
+    }
+    if (!formData.venue_id) {
+      setError("Seleziona un venue")
+      setIsLoading(false)
+      return
+    }
+    if (!formData.shift_date) {
+      setError("Seleziona una data")
+      setIsLoading(false)
+      return
+    }
+    if (!formData.start_time) {
+      setError("Seleziona l'orario di inizio")
+      setIsLoading(false)
+      return
+    }
+    if (!formData.end_time) {
+      setError("Seleziona l'orario di fine")
+      setIsLoading(false)
+      return
+    }
+
     try {
       const response = await fetch("/api/shifts", {
         method: "POST",
@@ -170,7 +197,7 @@ export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavai
           Aggiungi
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-125 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Crea Nuovo Turno</DialogTitle>
           <DialogDescription>Aggiungi un nuovo turno e assegnalo a un membro del team</DialogDescription>

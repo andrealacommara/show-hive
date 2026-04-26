@@ -136,7 +136,7 @@ export function MarkUnavailableDialog({ unavailabilities, currentUserId }: Props
           Gestisci indisponibilità
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-105">
         <DialogHeader>
           <DialogTitle>{editingId ? "Modifica indisponibilità" : "Segna indisponibilità"}</DialogTitle>
           <DialogDescription>Indica le date in cui non puoi coprire turni.</DialogDescription>

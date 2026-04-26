@@ -14,17 +14,23 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Calendar, LogOut } from "lucide-react"
 import { EditProfileDialog } from "./edit-profile-dialog"
+import type { User, Profile } from "@/types"
 
 interface DashboardHeaderProps {
-  user: any
-  profile: any
+  user: User
+  profile: Profile
+  isDemo?: boolean
 }
 
-export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
+export function DashboardHeader({ user, profile, isDemo = false }: DashboardHeaderProps) {
   const router = useRouter()
   const supabase = createClient()
 
   const handleSignOut = async () => {
+    if (isDemo) {
+      router.push("/auth/login")
+      return
+    }
     await supabase.auth.signOut()
     router.push("/auth/login")
   }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Calendar, AlertCircle } from "lucide-react"
+import { Calendar, AlertCircle, FlaskConical } from "lucide-react"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -40,8 +40,12 @@ export default function LoginPage() {
     }
   }
 
+  const handleDemoAccess = () => {
+    router.push("/dashboard?demo=true")
+  }
+
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-linear-to-br from-blue-50 to-indigo-100">
       <div className="w-full max-w-sm space-y-4">
         <Card>
           <CardHeader className="text-center">
@@ -88,6 +92,28 @@ export default function LoginPage() {
                   </div>
                 )}
               </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">oppure</span>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleDemoAccess}
+                variant="outline"
+                className="w-full"
+                size="lg"
+              >
+                <FlaskConical className="h-4 w-4 mr-2" />
+                Prova la demo
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Esplora l&apos;app con dati di esempio — nessun account richiesto
+              </p>
             </div>
           </CardContent>
         </Card>

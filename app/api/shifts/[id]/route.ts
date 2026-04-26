@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 import { deleteGoogleCalendarEvent, updateGoogleCalendarEvent, createGoogleCalendarEvent } from "@/lib/google-calendar"
 import { requireAllowed } from "@/lib/authz"
+import type { User } from "@/types"
 
 function addOneDay(date: string) {
   const d = new Date(date)
@@ -62,7 +63,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const isAdmin = access?.role === "admin"
     const isAssignee =
       shift.assigned_to === user.id ||
-      (Array.isArray(shift.shift_assignees) && shift.shift_assignees.some((sa: any) => sa?.user_id === user.id))
+      (Array.isArray(shift.shift_assignees) && shift.shift_assignees.some((sa) => sa?.user_id === user.id))
 
     if (!isAdmin) {
       if (shift.created_by !== user.id && !isAssignee) {
@@ -82,10 +83,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       } catch (calendarError) {
         console.error("[app] Calendar event deletion failed, rolling back DB delete:", calendarError)
         try {
-          const { shift_assignees, ...shiftRow } = shift as any
+          const { shift_assignees, ...shiftRow } = shift
           await admin.from("shifts").insert(shiftRow)
           if (Array.isArray(shift_assignees) && shift_assignees.length > 0) {
-            const assigneeRows = shift_assignees.map((sa: any) => ({ shift_id: id, user_id: sa.user_id }))
+            const assigneeRows = shift_assignees.map((sa) => ({ shift_id: id, user_id: sa.user_id }))
             await admin.from("shift_assignees").insert(assigneeRows)
           }
         } catch (rollbackError) {
@@ -142,7 +143,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const isAssignee =
-      existingShift.shift_assignees?.some((a: any) => a.user?.id === user.id) ||
+      existingShift.shift_assignees?.some((a) => a.user?.id === user.id) ||
       existingShift.assigned_to === user.id
 
     if (access?.role !== "admin" && !isAssignee) {
@@ -155,7 +156,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const unavailable = await getUnavailableAssignees(supabase, assignees, body.shift_date)
     if (unavailable.length > 0) {
       const names = unavailable
-        .map((u: any) => u.user?.full_name || u.user?.email || "Utente")
+        .map((u) => (u.user as User | undefined)?.full_name || (u.user as User | undefined)?.email || "Utente")
         .filter(Boolean)
         .join(", ")
       return NextResponse.json(
@@ -215,7 +216,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const venueName = venueInfo?.name?.trim()
 
       const attendees =
-        fullShift.shift_assignees?.map((a: any) => (a.user?.email ? { email: a.user.email } : null)).filter(Boolean) ||
+        fullShift.shift_assignees?.map((a) => (a.user?.email ? { email: a.user.email } : null)).filter(Boolean) ||
         []
 
       try {

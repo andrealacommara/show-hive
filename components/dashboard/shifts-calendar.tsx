@@ -181,7 +181,7 @@ export function ShiftsCalendar({
                   )
                 }
               >
-                <SelectTrigger className="h-8 text-xs sm:text-sm whitespace-nowrap w-full max-w-[140px]">
+                <SelectTrigger className="h-8 text-xs sm:text-sm whitespace-nowrap w-full max-w-35">
                   <SelectValue placeholder={currentYear}>
                     {currentYear}
                   </SelectValue>
@@ -224,7 +224,7 @@ export function ShiftsCalendar({
                 value={assigneeFilter}
                 onValueChange={(v) => setAssigneeFilter(v)}
               >
-                <SelectTrigger className="h-8 text-xs sm:text-sm w-full sm:w-[200px]">
+                <SelectTrigger className="h-8 text-xs sm:text-sm w-full sm:w-50">
                   <SelectValue placeholder="Filtro utenti" />
                 </SelectTrigger>
                 <SelectContent>
@@ -266,7 +266,7 @@ export function ShiftsCalendar({
               <div
                 key={day.toString()}
                 className={cn(
-                  "min-h-[56px] sm:min-h-[68px] p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-colors flex flex-col gap-1.5",
+                  "min-h-14 sm:min-h-17 p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-colors flex flex-col gap-1.5",
                   isCurrentDay
                     ? "bg-green-50 border-green-300 text-green-700"
                     : isSelected

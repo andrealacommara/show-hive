@@ -37,8 +37,9 @@ export async function deleteGoogleCalendarEvent(eventId: string) {
       calendarId: CENTRAL_CALENDAR_ID,
       eventId,
     })
-  } catch (error: any) {
-    if (error?.code === 404) {
+  } catch (error) {
+    const googleError = error as { code?: number }
+    if (googleError?.code === 404) {
       return true
     }
 
