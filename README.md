@@ -20,22 +20,35 @@
   - [4. Set up Google Calendar integration](#4-set-up-google-calendar-integration)
   - [5. Configure environment variables](#5-configure-environment-variables)
   - [6. Run the development server](#6-run-the-development-server)
+- [First-Time Bootstrap](#first-time-bootstrap)
 - [Environment Variables](#environment-variables)
 - [Google Calendar Setup](#google-calendar-setup)
 - [Authentication & Authorization](#authentication--authorization)
 - [API Reference](#api-reference)
 - [Roles & Permissions](#roles--permissions)
+- [Admin Guide: Managing the System](#admin-guide-managing-the-system)
 - [Demo Mode](#demo-mode)
+- [Maintenance & Operations](#maintenance--operations)
 - [Deployment](#deployment)
+- [Best Practices](#best-practices)
 - [Contributing](#contributing)
 
 ---
 
 ## Overview
 
-**ShowHive** (`show-hive-gestionale`) is a closed-access shift management tool designed for small teams — such as event staff, venue crews, or production teams. It allows administrators to create shifts at specific venues, assign team members, and automatically sync events to a centralized Google Calendar. Members can declare their unavailability so that the system prevents accidental scheduling conflicts.
+**ShowHive** (`show-hive-gestionale`) is a closed-access shift management platform designed for coordinating teams across multiple venues — such as event production crews, venue staff, or touring production teams. It provides a collaborative interface where administrators manage venues, create and assign shifts, track team member availability, and automatically sync all schedules with a centralized Google Calendar. Team members can view their assigned shifts, declare periods of unavailability, and manage their profiles.
 
-Authentication is handled exclusively via Google OAuth. Access to the application is controlled by a whitelist (`allowed_users` table), so only pre-approved email addresses can log in.
+### Core Workflow
+
+1. **Admin** creates venues (location catalog)
+2. **Admin/Member** creates shifts at specific venues, assigns team members, and sets a date/time
+3. **System** validates that no assignee is marked unavailable on the shift date
+4. **System** automatically creates a Google Calendar event and sends email invites to all assignees
+5. **Team members** can view the calendar, see their assignments, and mark dates when they're unavailable
+6. **Real-time sync**: Any changes to shifts (edits, deletions, reassignments) are reflected on the Google Calendar immediately
+
+**Authentication & Access Control:** Google OAuth handles authentication — only users on the whitelist (`allowed_users` table) can log in. Permissions are split into two roles: `admin` (full control) and `member` (manage own availability, view calendar).
 
 ---
 
@@ -47,9 +60,10 @@ Authentication is handled exclusively via Google OAuth. Access to the applicatio
 - **Venue management** — maintain a list of venues (name, address, city) used across shifts.
 - **Unavailability tracking** — members can mark date ranges when they are unavailable; the system blocks scheduling them on those days.
 - **Google Calendar sync** — shifts are automatically created as events on a centralized Google Calendar, with email invitations sent to all assignees. Edits and deletions are synced in real time.
-- **Calendar view** — interactive monthly grid showing shifts and unavailabilities.
-- **Table view** — spreadsheet-style alternative view for shifts.
-- **Role-based access control** — two roles (`admin` and `member`) with fine-grained Supabase RLS policies.
+- **Confirmation dialogs** — all destructive actions (delete shift, remove unavailability, delete venue) require confirmation to prevent accidental data loss.
+- **Calendar view** — interactive monthly grid showing shifts and unavailabilities at a glance.
+- **Table view** — spreadsheet-style alternative view for detailed shift review and management.
+- **Role-based access control** — two roles (`admin` and `member`) with fine-grained Supabase RLS policies to enforce data isolation and action limits.
 - **Demo mode** — a fully interactive preview of the app with realistic mock data, accessible from the login page without any account. No database writes are performed; all mutation attempts show an informational toast.
 - **Dark/light theme** — powered by `next-themes`.
 - **Responsive design** — works on desktop and mobile.
@@ -353,7 +367,28 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000). You will be redirected to the login page.
 
-**First-time bootstrap:** seed the first `allowed_users` row manually in Supabase with role `admin` before trying to use the dashboard. The database policy allows bootstrapping the first admin, but the current app flow redirects non-whitelisted users to `/auth/unauthorized`, so the initial insert is not exposed via UI.
+---
+
+## ⚠️ First-Time Bootstrap
+
+**Before you can use the dashboard for the first time**, you must manually insert the first admin user into the `allowed_users` table. The application redirects non-whitelisted users to `/auth/unauthorized`, so the initial setup cannot be done via the UI.
+
+### Bootstrap Steps
+
+1. Sign in to your **Supabase project** (https://supabase.com/dashboard)
+2. Go to **SQL Editor**
+3. Run this query (replace with the actual admin email):
+
+```sql
+INSERT INTO public.allowed_users (email, role)
+VALUES ('your-admin-email@example.com', 'admin');
+```
+
+4. Sign in to the app at [http://localhost:3000](http://localhost:3000) with that Google account
+5. You will now have access to the dashboard as an admin
+6. From the dashboard, use the **Members** card to add other team members and assign their roles
+
+> **Important:** There must always be at least one admin. The database enforces this via the `ensure_admin_exists_trigger` trigger — you cannot remove the last admin or downgrade the only admin to `member` role.
 
 ---
 
@@ -374,36 +409,54 @@ Open [http://localhost:3000](http://localhost:3000). You will be redirected to t
 
 ## Google Calendar Setup
 
-ShowHive uses a **server-side, single-account** approach for Google Calendar. All calendar events are created on one central Google account (the "admin" account). This means:
+ShowHive uses a **server-side, single-account** approach for Google Calendar. All calendar events are created on one central Google account (the "admin calendar account"). This means:
 
-- No per-user OAuth consent is required.
-- The server authenticates as the admin account using a long-lived refresh token.
-- When a shift is created or updated with assignees, an event is inserted on the central calendar and email invitations are sent to all assignees automatically.
-- When a shift is deleted or its assignees are changed, the corresponding calendar event is deleted or updated.
+- **No per-user consent required** — users do not need to authenticate with Google; the server acts on their behalf.
+- **Server authentication** — the server authenticates as the admin calendar account using a long-lived refresh token (set in `ADMIN_GOOGLE_REFRESH_TOKEN`).
+- **Automatic event creation & sync** — when a shift is created or updated with assignees, an event is inserted on the central calendar and email invitations are sent to all assignees automatically.
+- **Real-time updates** — when a shift is edited (time, venue, assignees) or deleted, the corresponding calendar event is updated or removed.
+- **Centralized visibility** — the admin calendar owner sees all shift events in their Google Calendar; assignees see invitations and can accept/decline.
 
-The central calendar is selected through `ADMIN_GOOGLE_CALENDAR_ID` in [lib/google-calendar.ts](/Users/lacco/Downloads/show-hive/lib/google-calendar.ts).
+### How to Obtain the Admin Refresh Token
+
+The refresh token is required to authenticate the server as the admin calendar account. You obtain it once via Google OAuth Playground:
+
+1. Go to [Google OAuth Playground](https://developers.google.com/oauthplayground)
+2. In the **settings** (gear icon), check **"Use your own OAuth credentials"** and paste your **Client ID** and **Client Secret** (from [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials))
+3. On the left side, scroll to **Google Calendar API v3** and select the scope `https://www.googleapis.com/auth/calendar`
+4. Click **Authorize APIs** and consent with the admin Google account (the one that will own the central calendar)
+5. Click **Exchange authorization code for tokens**
+6. Copy the `refresh_token` value and save it as `ADMIN_GOOGLE_REFRESH_TOKEN` in `.env.local`
+
+The refresh token is long-lived and does not expire unless you revoke it manually. Store it securely and never commit it to version control.
+
+The central calendar ID (from step 1 above, or your Google Calendar email) is stored in `ADMIN_GOOGLE_CALENDAR_ID`.
 
 ---
 
 ## Authentication & Authorization
 
-### Authentication flow
+### Authentication Flow
 
-1. User visits the app → redirected to `/auth/login`.
-2. User clicks **Sign in with Google** → Supabase initiates Google OAuth.
-3. After consent, Google redirects to `/auth/callback`.
-4. Supabase exchanges the code for a session; the `handle_new_user` trigger auto-creates a `profiles` record.
-5. The dashboard page checks `allowed_users` for the user's email. If not found → redirect to `/auth/unauthorized`.
+1. **User visits the app** → redirected to `/auth/login`
+2. **User clicks "Sign in with Google"** → Supabase initiates the OAuth flow with Google
+3. **Google consent screen** → user grants permission for basic profile info (email, name, avatar)
+4. **Google redirects to `/auth/callback`** → Supabase exchanges the authorization code for a session
+5. **Automatic profile creation** — a PostgreSQL trigger (`handle_new_user`) automatically creates a `profiles` row with user metadata from Google
+6. **Whitelist check** — the dashboard page queries `allowed_users` for the user's email
+   - ✅ **If found** → dashboard renders with the user's data and assigned role
+   - ❌ **If not found** → redirect to `/auth/unauthorized`
 
-### Authorization helpers (`lib/authz.ts`)
+### Authorization
 
-| Function | Behavior |
-|---|---|
-| `getUserAccess(email)` | Returns the `allowed_users` row for the email, or `null`. |
-| `requireAllowed(email)` | Throws `"Unauthorized"` if the user is not in `allowed_users`. |
-| `requireAdmin(email)` | Throws `"Forbidden"` if the user's role is not `'admin'`. |
+The app enforces permissions at two layers:
 
-The main protected route handlers use `requireAllowed` and `requireAdmin` to enforce whitelist and role checks. A few endpoints also rely on authenticated ownership checks directly in the handler and/or RLS.
+| Layer | Mechanism | Example |
+|---|---|---|
+| **API Layer** | Route handlers use `requireAdmin()` and `requireAllowed()` checks | Only admins can call `PUT /api/venues/[id]` to edit a venue |
+| **Database Layer** | Supabase Row Level Security (RLS) policies enforce row-level access | A member can only see/edit their own unavailabilities |
+
+The `allowed_users` table is the source of truth. Users not in this table cannot access anything except the unauthorized page. Admins can add or remove members and change roles directly from the **Members** card in the dashboard.
 
 ---
 
@@ -493,34 +546,140 @@ Permissions are enforced both at the API layer (via `requireAdmin` / `requireAll
 
 ## Demo Mode
 
-ShowHive includes a fully interactive demo mode that lets anyone explore the application without a Google account or database access. It is designed for sharing with stakeholders, recruiters, or anyone who needs to evaluate the app without being added to the whitelist.
+### Overview
 
-### How it works
+ShowHive includes a fully interactive demo mode for anyone to explore the application **without authentication or database access**. It's perfect for:
+- Sharing with stakeholders, recruiters, or potential users
+- Testing the UI without setting up a database
+- Understanding the app workflow before committing to deployment
 
-Clicking **"Prova la demo"** on the login page navigates to `/dashboard?demo=true`. The Next.js proxy detects the `demo=true` query parameter and skips the authentication redirect, allowing the request through without a Supabase session. The dashboard Server Component then detects the flag and renders the `DashboardView` with hardcoded mock data instead of fetching from the database.
+### How It Works
 
-All mutation buttons (create/edit shifts, create/edit venues, add/remove members, mark unavailability) remain visible and interactive, but intercept the action before any API call and display a Sonner toast: *"Modalità demo — Le modifiche non vengono salvate in demo."*
+The demo is activated by navigating to the dashboard with `?demo=true`:
 
-A sticky amber banner at the top of the page reminds the user they are in demo mode, with a direct link back to the login page.
+```
+http://localhost:3000/dashboard?demo=true
+```
 
-### Files involved
+Or by clicking **"Prova la demo"** on the login page.
+
+**What happens:**
+1. The middleware detects `?demo=true` and **skips authentication checks**
+2. The dashboard renders with **hardcoded mock data** (4 venues, 10 shifts, 4 team members, 3 unavailability periods)
+3. All UI controls remain **fully interactive** — buttons work, dialogs open, forms display
+4. **Data mutations are intercepted** — attempting to create/edit/delete anything shows a Sonner toast: *"Modalità demo — Le modifiche non vengono salvate in demo."*
+5. A **sticky amber banner** at the top reminds users they're in demo mode and provides a link back to login
+
+**No data writes occur.** Demo mode never touches the database and never calls any `/api/*` route. All state changes happen in-memory only.
+
+### Demo Data Content
+
+The mock dataset includes:
+- **4 venues**: Hiroshima Mon Amour, Spazio211, Magazzino sul Po, Club To Club (all in Turin)
+- **10 shifts**: Spread across upcoming dates, with realistic roles (Apertura Cassa, Sicurezza Ingresso, Stage Manager, Bar, etc.)
+- **4 team members**: Marco Ferretti, Sara Ricci, Luca Bianchi, + Demo User (as admin)
+- **3 unavailability periods**: Vacation, medical visit, and personal time for different users
+
+This makes the demo realistic enough to evaluate the system's capabilities.
+
+### Implementation Details
 
 | File | Role |
 |---|---|
-| `lib/demo-data.ts` | Hardcoded mock data — 4 venues, 10 shifts spread across upcoming dates, 4 team members, 3 unavailability periods |
-| `lib/supabase/middleware.ts` | Skips auth redirect when `?demo=true` is present in the URL |
-| `app/dashboard/page.tsx` | Branches on `searchParams.demo`; serves mock data instead of Supabase queries |
+| `lib/demo-data.ts` | Hardcoded mock data — venues, shifts, users, unavailabilities |
+| `lib/supabase/middleware.ts` | Skips auth redirect when `?demo=true` is detected |
+| `app/dashboard/page.tsx` | Branches on `searchParams.demo`; returns mock data instead of Supabase queries |
 | `components/dashboard/dashboard-view.tsx` | Accepts `isDemo` prop; renders the sticky demo banner |
-| `components/dashboard/dashboard-header.tsx` | "Esci" in demo mode redirects to login without calling `supabase.auth.signOut()` |
-| `components/dashboard/shifts-list.tsx` | All action buttons show a toast instead of opening dialogs |
-| `components/dashboard/venues-list.tsx` | Same |
-| `components/dashboard/create-venue-dialog.tsx` | `handleSubmit` exits early with toast if `isDemo` |
-| `components/dashboard/edit-venue-dialog.tsx` | Same |
-| `components/dashboard/members-card.tsx` | All three handlers (add, delete, role change) intercept with toast |
+| `components/dashboard/shifts-list.tsx`, `venues-list.tsx`, `members-card.tsx` | Action buttons show toast if `isDemo` instead of opening dialogs |
 
-### Security
+### Security Notes
 
-Demo mode is entirely read-only at the data layer. It does not authenticate with Supabase, does not hold a session cookie, and never calls any `/api/*` route. The mock data in `lib/demo-data.ts` is static and fictional — no real user, venue, or shift data is exposed.
+- Demo mode is **entirely client-side** and read-only
+- No Supabase session cookie is created or required
+- No database queries are executed
+- Mock data is static fictional data — no real user or business data is exposed
+- Safe to use in public or share broadly
+
+---
+
+## Admin Guide: Managing the System
+
+Once the app is deployed, admins manage the system from the dashboard. Here's the typical workflow:
+
+### Adding Team Members
+
+1. Go to the **Members** card (right panel)
+2. Click **"Add Member"** and enter the team member's email address
+3. Set their role:
+   - `member` — can view calendar, create/edit own shifts, mark unavailability
+   - `admin` — full access, can edit any shift, manage members, manage venues
+
+The team member can then log in with their Google account and will have access immediately.
+
+### Creating Shifts
+
+1. Click the **"+ New Shift"** button
+2. Fill in shift details:
+   - **Title** — role or task (e.g., "Apertura Bar", "Stage Manager")
+   - **Venue** — select from the venue list
+   - **Date** — pick from the date picker
+   - **Time** — start and end times
+   - **Assignees** — select team members (multi-select allowed)
+3. **Confirmation** — the system checks if any assignee is unavailable on that date and warns you
+4. **Sync** — upon creation, a Google Calendar event is created and invites are sent to assignees
+
+### Managing Unavailability
+
+Team members can declare their unavailability in two ways:
+
+1. **Self-service** — click **"Mark Unavailable"** in the dashboard, pick date range and reason (e.g., "vacation", "medical appointment")
+2. **Admin override** — (future feature) admins may manage member unavailability
+
+When a shift is created or edited, the system checks against all unavailabilities and will warn if an assignee conflicts.
+
+### Editing Shifts
+
+- Click the shift in the calendar or list to open the edit dialog
+- You can change the title, venue, time, or reassign team members
+- **Permission check:**
+  - `member` — can only edit shifts they created or are assigned to
+  - `admin` — can edit any shift
+- Confirmation dialog confirms the action before applying
+- Changes sync to Google Calendar automatically
+
+### Deleting Shifts
+
+- Click **Delete** on a shift
+- A confirmation dialog appears to prevent accidents
+- Upon confirmation, the shift and its Google Calendar event are removed
+- Assignees are no longer invited to the event
+
+### Managing Venues
+
+- **Admin only** can create, edit, or delete venues
+- Venues are a catalog (address, city) reused across shifts
+- Deleting a venue cascades to delete all shifts at that venue
+
+---
+
+## Maintenance & Operations
+
+### GitHub Actions: Supabase Keep-Alive
+
+The repository includes a GitHub Actions workflow (`.github/workflows/keep-alive.yml`) that **pings your Supabase project every 3 days** to keep it active. This prevents Supabase free-tier projects from being auto-paused due to inactivity.
+
+**How it works:**
+- Cron schedule: `0 8 */3 * *` (every 3 days at 08:00 UTC)
+- Action: Makes a simple API call to your Supabase project
+- Secrets required: `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+
+**To enable it on your fork:**
+1. Go to **Repository Settings → Secrets and variables → Actions**
+2. Add `SUPABASE_URL` (your Supabase project URL)
+3. Add `SUPABASE_ANON_KEY` (your Supabase anon key)
+4. The workflow will run automatically starting the next scheduled time
+
+If you don't use this, Supabase free-tier projects may pause after 1 week of inactivity, and you'll need to manually resume them.
 
 ---
 
@@ -544,7 +703,29 @@ For other platforms, ensure the following:
 
 ---
 
-## Contributing
+## Best Practices
+
+### For Admins
+
+- **Venue catalog first** — create venues before shifts to keep data organized
+- **Clear naming** — use consistent shift titles (e.g., "Apertura Bar", "Sicurezza", "Stage Manager") so team members understand roles at a glance
+- **Confirm Google Calendar access** — ensure the admin calendar account is shared with the team or that team members check their email for shift invitations
+- **Whitelist management** — regularly review the **Members** list to keep it current; remove team members who have left
+- **Role assignment** — use `member` by default; only grant `admin` to trusted leads who will help manage the schedule
+
+### For Team Members
+
+- **Mark unavailability early** — declare dates you cannot work in advance; the system will warn admins if they try to assign you
+- **Check your email** — shift invitations are sent via Google Calendar invite; accept or decline in your email or calendar app
+- **Use the calendar view** — the month grid shows all your shifts and unavailability at a glance
+- **Report conflicts** — if you see an impossible scheduling conflict (e.g., overlapping shifts), contact your admin immediately
+
+### For Deployment
+
+- **Environment variables in CI/CD** — use your platform's secrets manager (Vercel, GitHub Secrets, etc.) to store sensitive credentials; never hardcode them
+- **Monitor Google Calendar quota** — if you have hundreds of shifts, monitor Google Calendar API quotas (10 QPS per user by default)
+- **Database backups** — Supabase includes automatic backups; enable manual backups if you're critical to your operation
+- **Test the demo** — before sharing with external stakeholders, verify the demo mode URL works as expected
 
 1. Fork the repository and create a feature branch: `git checkout -b feature/your-feature`.
 2. Make your changes and ensure TypeScript compiles: `pnpm build`.

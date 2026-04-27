@@ -61,6 +61,7 @@ export function VenuesList({
     try {
       const res = await fetch(`/api/venues/${venue.id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Delete failed")
+      onDeleteVenue?.(venue.id)
       router.refresh()
     } catch (error) {
       console.error("Delete venue failed", error)

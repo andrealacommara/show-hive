@@ -46,9 +46,9 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
     )
   }
 
-  const handleCreateVenue = (payload: { name: string; address?: string; city?: string }) => {
+  const handleCreateVenue = (payload: { id?: string; name: string; address?: string; city?: string }) => {
     const venue: Venue = {
-      id: createDemoId("venue"),
+      id: payload.id || createDemoId("venue"),
       name: payload.name,
       address: payload.address || "",
       city: payload.city || "",
@@ -86,6 +86,7 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
   }
 
   const handleCreateShift = (payload: {
+    id?: string
     title: string
     description?: string
     venue_id: string
@@ -96,7 +97,7 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
   }) => {
     const venue = venuesState.find((item) => item.id === payload.venue_id)
     const shift: Shift = {
-      id: createDemoId("shift"),
+      id: payload.id || createDemoId("shift"),
       title: payload.title,
       description: payload.description || "",
       venue_id: payload.venue_id,

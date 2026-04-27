@@ -22,7 +22,7 @@ import { toast } from "sonner"
 interface CreateVenueDialogProps {
   currentUserId: string
   isDemo?: boolean
-  onCreateVenue?: (payload: { name: string; address?: string; city?: string }) => void
+  onCreateVenue?: (payload: { id?: string; name: string; address?: string; city?: string }) => void
 }
 
 export function CreateVenueDialog({ currentUserId, isDemo = false, onCreateVenue }: CreateVenueDialogProps) {
@@ -70,6 +70,11 @@ export function CreateVenueDialog({ currentUserId, isDemo = false, onCreateVenue
         throw new Error(data.error || "Errore durante la creazione del locale")
       }
 
+      const data = await response.json()
+      onCreateVenue?.({
+        ...payload,
+        id: data.id,
+      })
       setOpen(false)
       setFormData({ name: "", address: "", city: "" })
       router.refresh()

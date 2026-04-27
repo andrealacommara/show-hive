@@ -51,6 +51,7 @@ interface CreateShiftDialogProps {
   currentUserId: string
   isDemo?: boolean
   onCreateShift?: (payload: {
+    id?: string
     title: string
     description?: string
     venue_id: string
@@ -210,6 +211,13 @@ export function CreateShiftDialog({
         throw new Error(data.error || "Failed to create shift")
       }
 
+      const data = await response.json()
+      onCreateShift?.({
+        ...formData,
+        id: data.id,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+      })
       setOpen(false)
       setFormData({
         title: "",
