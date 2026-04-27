@@ -742,5 +742,15 @@ For other platforms, ensure the following:
 2. Make your changes and ensure TypeScript compiles: `pnpm build`.
 3. Lint your code: `pnpm lint` after adding an ESLint config for the repo, or use your preferred validation flow if linting is not yet configured.
 4. Open a pull request with a clear description of the changes.
+---
 
-> Note: `next.config.mjs` currently has `typescript.ignoreBuildErrors: true`. It is recommended to fix any TypeScript errors rather than relying on this flag in production.
+## 🧑‍💻 Author
+
+Andrea La Commara
+
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License**.  
+You are free to modify and reuse it, as long as proper credit is given.
