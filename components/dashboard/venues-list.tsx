@@ -4,6 +4,16 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MapPin, Building2, Pencil, Trash2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { CreateVenueDialog } from "./create-venue-dialog"
 import { EditVenueDialog } from "./edit-venue-dialog"
 
@@ -35,14 +45,18 @@ export function VenuesList({
 }: VenuesListProps) {
   const router = useRouter()
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [confirmDeleteVenue, setConfirmDeleteVenue] = useState<Venue | null>(null)
 
-  const handleDelete = async (venue: Venue) => {
+  const handleDeleteConfirmed = async () => {
+    const venue = confirmDeleteVenue
+    if (!venue) return
+    setConfirmDeleteVenue(null)
+
     if (isDemo) {
       onDeleteVenue?.(venue.id)
       return
     }
     if (!isAdmin) return
-    if (!confirm(`Eliminare il locale "${venue.name}"?`)) return
     setBusyId(venue.id)
     try {
       const res = await fetch(`/api/venues/${venue.id}`, { method: "DELETE" })
@@ -57,72 +71,100 @@ export function VenuesList({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Locali
-          </CardTitle>
-          <CreateVenueDialog currentUserId={currentUserId} isDemo={isDemo} onCreateVenue={onCreateVenue} />
-        </div>
-      </CardHeader>
-      <CardContent>
-        {venues.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Building2 className="h-12 w-12 mx-auto mb-3 opacity-20" />
-            <p className="text-sm">Nessun locale aggiunto</p>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Locali
+            </CardTitle>
+            <CreateVenueDialog currentUserId={currentUserId} isDemo={isDemo} onCreateVenue={onCreateVenue} />
           </div>
-        ) : (
-          <div className="space-y-3">
-            {venues.map((venue) => (
-              <div key={venue.id} className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="font-medium mb-1">{venue.name}</h4>
-                  {(isAdmin || isDemo) && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <EditVenueDialog
-                        venue={venue}
-                        onUpdated={() => router.refresh()}
-                        isDemo={isDemo}
-                        onSaveVenue={onUpdateVenue}
-                      >
+        </CardHeader>
+        <CardContent>
+          {venues.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Building2 className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p className="text-sm">Nessun locale aggiunto</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {venues.map((venue) => (
+                <div key={venue.id} className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="font-medium mb-1">{venue.name}</h4>
+                    {(isAdmin || isDemo) && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <EditVenueDialog
+                          venue={venue}
+                          onUpdated={() => router.refresh()}
+                          isDemo={isDemo}
+                          onSaveVenue={onUpdateVenue}
+                        >
+                          <button
+                            type="button"
+                            disabled={busyId === venue.id}
+                            className="rounded p-1 hover:bg-accent"
+                            aria-label="Modifica locale"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        </EditVenueDialog>
                         <button
                           type="button"
+                          onClick={() => setConfirmDeleteVenue(venue)}
                           disabled={busyId === venue.id}
                           className="rounded p-1 hover:bg-accent"
-                          aria-label="Modifica locale"
+                          aria-label="Elimina locale"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
-                      </EditVenueDialog>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(venue)}
-                        disabled={busyId === venue.id}
-                        className="rounded p-1 hover:bg-accent"
-                        aria-label="Elimina locale"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      </div>
+                    )}
+                  </div>
+                  {(venue.address || venue.city) && (
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span className="text-pretty">
+                        {venue.address}
+                        {venue.address && venue.city && ", "}
+                        {venue.city}
+                      </span>
                     </div>
                   )}
                 </div>
-                {(venue.address || venue.city) && (
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                    <span className="text-pretty">
-                      {venue.address}
-                      {venue.address && venue.city && ", "}
-                      {venue.city}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Conferma eliminazione locale */}
+      <AlertDialog
+        open={confirmDeleteVenue !== null}
+        onOpenChange={(v) => { if (!v) setConfirmDeleteVenue(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare il locale?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Stai per eliminare <span className="font-semibold">"{confirmDeleteVenue?.name}"</span>
+              {confirmDeleteVenue?.city ? ` (${confirmDeleteVenue.city})` : ""}.
+              {" "}Questa azione non può essere annullata e rimuoverà il locale da tutti i turni associati.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={handleDeleteConfirmed}
+            >
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

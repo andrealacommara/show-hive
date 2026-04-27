@@ -3,6 +3,16 @@
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -81,6 +91,7 @@ export function EditShiftDialog({
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [confirmDeleteShift, setConfirmDeleteShift] = useState(false)
   const [formData, setFormData] = useState({
     title: shift.title,
     description: shift.description || "",
@@ -115,8 +126,8 @@ export function EditShiftDialog({
     }))
   }
 
-  const handleDelete = async () => {
-    if (!confirm("Eliminare questo turno?")) return
+  const handleDeleteConfirmed = async () => {
+    setConfirmDeleteShift(false)
     if (isDemo) {
       onDeleteShift?.(shift.id)
       onDeleted?.(shift.id)
@@ -208,14 +219,15 @@ export function EditShiftDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-125 max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Modifica Turno</DialogTitle>
-          <DialogDescription>Aggiorna il turno mantenendo la stessa struttura della creazione.</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>{children}</DialogTrigger>
+        <DialogContent className="sm:max-w-125 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifica Turno</DialogTitle>
+            <DialogDescription>Aggiorna il turno mantenendo la stessa struttura della creazione.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="edit-title">Titolo Turno</Label>
             <Input
@@ -395,7 +407,7 @@ export function EditShiftDialog({
             <Button
               type="button"
               variant="destructive"
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteShift(true)}
               disabled={isLoading || isDeleting}
             >
               {isDeleting ? "Eliminazione..." : "Elimina"}
@@ -412,5 +424,32 @@ export function EditShiftDialog({
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Conferma eliminazione turno */}
+    <AlertDialog
+      open={confirmDeleteShift}
+      onOpenChange={(v) => { if (!v) setConfirmDeleteShift(false) }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminare il turno?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Stai per eliminare <span className="font-semibold">"{shift.title}"</span>
+            {" "}del {shift.shift_date}.
+            {" "}Questa azione non può essere annullata.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annulla</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-white hover:bg-destructive/90"
+            onClick={handleDeleteConfirmed}
+          >
+            Elimina
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

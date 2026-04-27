@@ -10,6 +10,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -52,6 +62,7 @@ export function MarkUnavailableDialog({
     reason: "",
   })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
 
@@ -70,7 +81,6 @@ export function MarkUnavailableDialog({
       const [year, month, day] = value.split("-").map(Number)
       return new Date(year, (month ?? 1) - 1, day ?? 1)
     }
-
     return myUnavailabilities.filter((item) => toDate(item.end_date) >= today)
   }, [myUnavailabilities, today])
 
@@ -137,7 +147,11 @@ export function MarkUnavailableDialog({
     setOpen(true)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteConfirmed = async () => {
+    const id = confirmDeleteId
+    if (!id) return
+    setConfirmDeleteId(null)
+
     if (isDemo) {
       onDeleteUnavailability?.(id)
       return
@@ -159,117 +173,152 @@ export function MarkUnavailableDialog({
     }
   }
 
+  const itemToDelete = useMemo(
+    () => activeOrUpcomingUnavailabilities.find((u) => u.id === confirmDeleteId),
+    [activeOrUpcomingUnavailabilities, confirmDeleteId],
+  )
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full gap-2">
-          <CalendarX className="h-4 w-4" />
-          Gestisci indisponibilità
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-105">
-        <DialogHeader>
-          <DialogTitle>{editingId ? "Modifica indisponibilità" : "Segna indisponibilità"}</DialogTitle>
-          <DialogDescription>Indica le date in cui non puoi coprire turni.</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full gap-2">
+            <CalendarX className="h-4 w-4" />
+            Gestisci indisponibilità
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-105">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Modifica indisponibilità" : "Segna indisponibilità"}</DialogTitle>
+            <DialogDescription>Indica le date in cui non puoi coprire turni.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="start_date">Dal</Label>
+                <Input
+                  id="start_date"
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => setForm((prev) => ({ ...prev, start_date: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end_date">Al</Label>
+                <Input
+                  id="end_date"
+                  type="date"
+                  value={form.end_date}
+                  onChange={(e) => setForm((prev) => ({ ...prev, end_date: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="start_date">Dal</Label>
-              <Input
-                id="start_date"
-                type="date"
-                value={form.start_date}
-                onChange={(e) => setForm((prev) => ({ ...prev, start_date: e.target.value }))}
-                required
+              <Label htmlFor="reason">Note (opzionale)</Label>
+              <Textarea
+                id="reason"
+                value={form.reason}
+                onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
+                placeholder="Motivo o note (facoltativo)"
+                rows={3}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="end_date">Al</Label>
-              <Input
-                id="end_date"
-                type="date"
-                value={form.end_date}
-                onChange={(e) => setForm((prev) => ({ ...prev, end_date: e.target.value }))}
-                required
-              />
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setOpen(false)
+                  setEditingId(null)
+                  setForm({ start_date: "", end_date: "", reason: "" })
+                }}
+                disabled={isLoading}
+              >
+                Annulla
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Salvataggio..." : editingId ? "Aggiorna" : "Salva"}
+              </Button>
             </div>
-          </div>
+          </form>
 
-          <div className="space-y-2">
-            <Label htmlFor="reason">Note (opzionale)</Label>
-            <Textarea
-              id="reason"
-              value={form.reason}
-              onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
-              placeholder="Motivo o note (facoltativo)"
-              rows={3}
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setOpen(false)
-                setEditingId(null)
-              }}
-              disabled={isLoading}
-            >
-              Annulla
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Salvataggio..." : editingId ? "Aggiorna" : "Salva"}
-            </Button>
-          </div>
-        </form>
-
-        {activeOrUpcomingUnavailabilities.length > 0 && (
-          <div className="space-y-2 border-t pt-3 mt-3">
-            <h4 className="text-sm font-semibold">Le mie indisponibilità</h4>
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {activeOrUpcomingUnavailabilities.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-start justify-between gap-2 rounded-md border bg-muted/60 px-2 py-2"
-                >
-                  <div className="text-xs leading-tight space-y-1">
-                    <div className="font-semibold">
-                      {item.start_date} → {item.end_date}
+          {activeOrUpcomingUnavailabilities.length > 0 && (
+            <div className="space-y-2 border-t pt-3 mt-3">
+              <h4 className="text-sm font-semibold">Le mie indisponibilità</h4>
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {activeOrUpcomingUnavailabilities.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-start justify-between gap-2 rounded-md border bg-muted/60 px-2 py-2"
+                  >
+                    <div className="text-xs leading-tight space-y-1">
+                      <div className="font-semibold">
+                        {item.start_date} → {item.end_date}
+                      </div>
+                      {item.reason && <div className="text-muted-foreground">{item.reason}</div>}
                     </div>
-                    {item.reason && <div className="text-muted-foreground">{item.reason}</div>}
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-[11px]"
+                        onClick={() => handleEdit(item)}
+                        disabled={isLoading}
+                      >
+                        Modifica
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 px-2 text-[11px]"
+                        onClick={() => setConfirmDeleteId(item.id)}
+                        disabled={isLoading}
+                      >
+                        Elimina
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2 text-[11px]"
-                      onClick={() => handleEdit(item)}
-                      disabled={isLoading}
-                    >
-                      Modifica
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="h-7 px-2 text-[11px]"
-                      onClick={() => handleDelete(item.id)}
-                      disabled={isLoading}
-                    >
-                      Elimina
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Conferma eliminazione indisponibilità */}
+      <AlertDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(v) => { if (!v) setConfirmDeleteId(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare l'indisponibilità?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {itemToDelete
+                ? `Stai per eliminare l'indisponibilità dal ${itemToDelete.start_date} al ${itemToDelete.end_date}${itemToDelete.reason ? ` (${itemToDelete.reason})` : ""}.`
+                : "Stai per eliminare questa indisponibilità."}{" "}
+              Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={handleDeleteConfirmed}
+            >
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
