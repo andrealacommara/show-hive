@@ -11,6 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number)
+  return new Date(year, (month ?? 1) - 1, day ?? 1)
+}
+
 type Shift = {
   id: string
   title: string
@@ -66,7 +71,11 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
     return monthDays
       .flatMap((day) =>
         shifts
-          .filter((shift) => isSameMonth(parseISO(shift.shift_date), currentMonth) && shift.shift_date === day.toISOString().slice(0, 10))
+          .filter((shift) => {
+            const shiftDate = parseLocalDate(shift.shift_date)
+            const dayKey = format(day, "yyyy-MM-dd")
+            return isSameMonth(shiftDate, currentMonth) && shift.shift_date === dayKey
+          })
           .sort((a, b) => a.start_time.localeCompare(b.start_time)),
       )
       .filter((shift) => {
@@ -81,12 +90,12 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
 
         const unavailable = (shift.shift_assignees || []).filter(({ user }) => {
           if (!user?.id) return false
-          const date = parseISO(shift.shift_date)
+          const date = parseLocalDate(shift.shift_date)
           return unavailabilities.some(
             (u) =>
               u.user?.id === user.id &&
-              date >= parseISO(u.start_date) &&
-              date <= parseISO(u.end_date),
+              date >= parseLocalDate(u.start_date) &&
+              date <= parseLocalDate(u.end_date),
           )
         })
 
@@ -221,7 +230,7 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                   <TableRow key={shift.id} className="align-top">
                     <TableCell className="text-sm whitespace-nowrap">
                       <div className="font-semibold">
-                        {format(parseISO(shift.shift_date), "EEE d MMM", { locale: it })}
+                        {format(parseLocalDate(shift.shift_date), "EEE d MMM", { locale: it })}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
@@ -312,10 +321,10 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                   <TableRow key={item.id} className="align-top">
                     <TableCell className="text-sm">{item.user?.full_name || item.user?.email || "Utente"}</TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
-                      {format(parseISO(item.start_date), "d MMM", { locale: it })}
+                      {format(parseLocalDate(item.start_date), "d MMM", { locale: it })}
                     </TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
-                      {format(parseISO(item.end_date), "d MMM", { locale: it })}
+                      {format(parseLocalDate(item.end_date), "d MMM", { locale: it })}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-50">
                       {item.reason || "—"}

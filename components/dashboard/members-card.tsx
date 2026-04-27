@@ -16,16 +16,22 @@ interface MembersCardProps {
   profiles: { email: string; full_name?: string }[]
   isAdmin?: boolean
   isDemo?: boolean
+  onMembersChange?: (members: Member[]) => void
 }
 
-export function MembersCard({ members: initialMembers, currentUserEmail, profiles, isAdmin: isAdminProp, isDemo = false }: MembersCardProps) {
+function createDemoMemberId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `mem-${crypto.randomUUID()}`
+  }
+
+  return `mem-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+export function MembersCard({ members: initialMembers, currentUserEmail, profiles, isAdmin: isAdminProp, isDemo = false, onMembersChange }: MembersCardProps) {
   const [members, setMembers] = useState<Member[]>(initialMembers)
   const [email, setEmail] = useState("")
   const [role, setRole] = useState<Member["role"]>("member")
   const [loading, setLoading] = useState(false)
-
-  const notifyDemo = () =>
-    toast.info("Modalità demo", { description: "Le modifiche non vengono salvate in demo." })
 
   useEffect(() => {
     setMembers(initialMembers)
@@ -33,7 +39,24 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
 
   const handleAdd = async () => {
     if (!email) return
-    if (isDemo) { notifyDemo(); setEmail(""); return }
+    if (isDemo) {
+      const normalizedEmail = email.trim().toLowerCase()
+      const nextMember: Member = {
+        id: members.find((member) => member.email === normalizedEmail)?.id || createDemoMemberId(),
+        email: normalizedEmail,
+        role,
+      }
+      const nextMembers = members.some((member) => member.email === normalizedEmail)
+        ? members.map((member) => (member.email === normalizedEmail ? nextMember : member))
+        : [...members, nextMember]
+      const sorted = nextMembers.sort((a, b) => a.email.localeCompare(b.email))
+      setMembers(sorted)
+      onMembersChange?.(sorted)
+      setEmail("")
+      setRole("member")
+      toast.success("Collaboratore aggiornato nella demo")
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch("/api/members", {
@@ -60,7 +83,12 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
   }
 
   const handleDelete = async (id: string) => {
-    if (isDemo) { notifyDemo(); return }
+    if (isDemo) {
+      const nextMembers = members.filter((member) => member.id !== id)
+      setMembers(nextMembers)
+      onMembersChange?.(nextMembers)
+      return
+    }
     const member = members.find((m) => m.id === id)
     if (!member) return
     if (!confirm(`Rimuovere ${member.email}?`)) return
@@ -78,7 +106,12 @@ export function MembersCard({ members: initialMembers, currentUserEmail, profile
   }
 
   const handleRoleChange = async (id: string, nextRole: Member["role"]) => {
-    if (isDemo) { notifyDemo(); return }
+    if (isDemo) {
+      const nextMembers = members.map((member) => (member.id === id ? { ...member, role: nextRole } : member))
+      setMembers(nextMembers)
+      onMembersChange?.(nextMembers)
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch(`/api/members/${id}`, {

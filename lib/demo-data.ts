@@ -32,14 +32,14 @@ export const DEMO_USERS = [
   { id: "user-1", full_name: "Marco Ferretti", email: "marco@showhive.app" },
   { id: "user-2", full_name: "Sara Ricci", email: "sara@showhive.app" },
   { id: "user-3", full_name: "Luca Bianchi", email: "luca@showhive.app" },
-  { id: "user-4", full_name: "Demo User", email: "demo@showhive.app" },
+  { id: "demo-user-id", full_name: "Demo User", email: "demo@showhive.app" },
 ]
 
 export const DEMO_MEMBERS: Member[] = [
-  { id: "mem-1", email: "marco@showhive.app", role: "admin" },
+  { id: "mem-1", email: "marco@showhive.app", role: "member" },
   { id: "mem-2", email: "sara@showhive.app", role: "member" },
   { id: "mem-3", email: "luca@showhive.app", role: "member" },
-  { id: "mem-4", email: "demo@showhive.app", role: "member" },
+  { id: "mem-4", email: "demo@showhive.app", role: "admin" },
 ]
 
 const makeShift = (
@@ -72,12 +72,12 @@ const makeShift = (
 }
 
 export const DEMO_SHIFTS = [
-  makeShift("shift-1", "Apertura Cassa", "venue-1", 1, "20:00", "23:00", ["user-1", "user-4"], "Biglietteria serata indie"),
+  makeShift("shift-1", "Apertura Cassa", "venue-1", 1, "20:00", "23:00", ["user-1", "demo-user-id"], "Biglietteria serata indie"),
   makeShift("shift-2", "Sicurezza Ingresso", "venue-1", 1, "20:30", "02:00", ["user-2"]),
   makeShift("shift-3", "Stage Manager", "venue-2", 3, "18:00", "23:30", ["user-3"], "Concerto band emergenti"),
   makeShift("shift-4", "Hospitality Artisti", "venue-2", 3, "17:00", "00:00", ["user-1"]),
   makeShift("shift-5", "Apertura Bar", "venue-3", 5, "21:00", "03:00", ["user-2", "user-3"]),
-  makeShift("shift-6", "Regia Luci", "venue-4", 7, "15:00", "23:00", ["user-4"], "Festival Club To Club"),
+  makeShift("shift-6", "Regia Luci", "venue-4", 7, "15:00", "23:00", ["demo-user-id"], "Festival Club To Club"),
   makeShift("shift-7", "Runner Palco", "venue-1", 10, "19:00", "01:00", ["user-1", "user-2"]),
   makeShift("shift-8", "Cassa Principale", "venue-3", 12, "22:00", "04:00", ["user-3"]),
   makeShift("shift-9", "Guardaroba", "venue-2", 14, "20:00", "02:00", []),

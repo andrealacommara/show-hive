@@ -11,9 +11,11 @@ import { useRouter } from "next/navigation"
 interface EditProfileDialogProps {
   fullName?: string
   children: React.ReactNode
+  isDemo?: boolean
+  onSaved?: (fullName: string) => void
 }
 
-export function EditProfileDialog({ fullName, children }: EditProfileDialogProps) {
+export function EditProfileDialog({ fullName, children, isDemo = false, onSaved }: EditProfileDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -37,6 +39,17 @@ export function EditProfileDialog({ fullName, children }: EditProfileDialogProps
     e.preventDefault()
     setIsLoading(true)
     try {
+      const normalizedFullName = [formData.first_name.trim(), formData.last_name.trim()].filter(Boolean).join(" ")
+      if (!normalizedFullName) {
+        throw new Error("Nome o cognome obbligatori")
+      }
+
+      if (isDemo) {
+        onSaved?.(normalizedFullName)
+        setOpen(false)
+        return
+      }
+
       const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -46,6 +59,7 @@ export function EditProfileDialog({ fullName, children }: EditProfileDialogProps
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || "Update failed")
       }
+      onSaved?.(normalizedFullName)
       setOpen(false)
       router.refresh()
     } catch (error) {

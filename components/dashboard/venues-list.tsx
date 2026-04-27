@@ -19,14 +19,28 @@ interface VenuesListProps {
   currentUserId: string
   isAdmin?: boolean
   isDemo?: boolean
+  onCreateVenue?: (payload: { name: string; address?: string; city?: string }) => void
+  onUpdateVenue?: (venueId: string, payload: { name: string; address?: string; city?: string }) => void
+  onDeleteVenue?: (venueId: string) => void
 }
 
-export function VenuesList({ venues, currentUserId, isAdmin = false, isDemo = false }: VenuesListProps) {
+export function VenuesList({
+  venues,
+  currentUserId,
+  isAdmin = false,
+  isDemo = false,
+  onCreateVenue,
+  onUpdateVenue,
+  onDeleteVenue,
+}: VenuesListProps) {
   const router = useRouter()
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const handleDelete = async (venue: Venue) => {
-    if (isDemo) { return }
+    if (isDemo) {
+      onDeleteVenue?.(venue.id)
+      return
+    }
     if (!isAdmin) return
     if (!confirm(`Eliminare il locale "${venue.name}"?`)) return
     setBusyId(venue.id)
@@ -50,7 +64,7 @@ export function VenuesList({ venues, currentUserId, isAdmin = false, isDemo = fa
             <Building2 className="h-5 w-5" />
             Locali
           </CardTitle>
-          <CreateVenueDialog currentUserId={currentUserId} isDemo={isDemo} />
+          <CreateVenueDialog currentUserId={currentUserId} isDemo={isDemo} onCreateVenue={onCreateVenue} />
         </div>
       </CardHeader>
       <CardContent>
@@ -67,7 +81,12 @@ export function VenuesList({ venues, currentUserId, isAdmin = false, isDemo = fa
                   <h4 className="font-medium mb-1">{venue.name}</h4>
                   {(isAdmin || isDemo) && (
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <EditVenueDialog venue={venue} onUpdated={() => router.refresh()} isDemo={isDemo}>
+                      <EditVenueDialog
+                        venue={venue}
+                        onUpdated={() => router.refresh()}
+                        isDemo={isDemo}
+                        onSaveVenue={onUpdateVenue}
+                      >
                         <button
                           type="button"
                           disabled={busyId === venue.id}

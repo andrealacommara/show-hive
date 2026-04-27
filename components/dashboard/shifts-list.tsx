@@ -16,7 +16,6 @@ import { it } from "date-fns/locale";
 import { CreateShiftDialog } from "./create-shift-dialog";
 import { EditShiftDialog } from "./edit-shift-dialog";
 import { MarkUnavailableDialog } from "./mark-unavailable-dialog";
-import { toast } from "sonner";
 import type { Shift, Venue, User, Unavailability } from "@/types";
 
 function parseLocalDate(dateStr: string): Date {
@@ -34,6 +33,27 @@ interface ShiftsListProps {
   selectedDate?: Date | null;
   onClearDate?: () => void;
   isDemo?: boolean;
+  onCreateShift?: (payload: {
+    title: string;
+    description?: string;
+    venue_id: string;
+    shift_date: string;
+    start_time: string;
+    end_time: string;
+    assignees: string[];
+  }) => void;
+  onUpdateShift?: (id: string, payload: {
+    title: string;
+    description?: string;
+    venue_id: string;
+    shift_date: string;
+    start_time: string;
+    end_time: string;
+    assignees: string[];
+  }) => void;
+  onDeleteShift?: (id: string) => void;
+  onSaveUnavailability?: (payload: { id?: string; start_date: string; end_date: string; reason?: string }) => void;
+  onDeleteUnavailability?: (id: string) => void;
 }
 
 export function ShiftsList({
@@ -46,13 +66,15 @@ export function ShiftsList({
   selectedDate,
   onClearDate,
   isDemo = false,
+  onCreateShift,
+  onUpdateShift,
+  onDeleteShift,
+  onSaveUnavailability,
+  onDeleteUnavailability,
 }: ShiftsListProps) {
   const [selectedVenue, setSelectedVenue] = useState<string | "all">("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [localShifts, setLocalShifts] = useState<Shift[]>(shifts);
-
-  const notifyDemo = () =>
-    toast.info("Modalità demo", { description: "Le modifiche non vengono salvate in demo." });
 
   useEffect(() => {
     setLocalShifts(shifts);
@@ -121,44 +143,36 @@ export function ShiftsList({
               Eventi
             </CardTitle>
             <div className="hidden sm:flex gap-2">
-              {isDemo ? (
-                <button type="button" onClick={notifyDemo} className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border border-dashed text-muted-foreground hover:bg-accent transition-colors">
-                  + Nuovo turno
-                </button>
-              ) : (
-                <CreateShiftDialog
-                  shifts={shifts}
-                  venues={venues}
-                  users={users}
-                  unavailabilities={unavailabilities}
-                  currentUserId={currentUserId}
-                />
-              )}
+              <CreateShiftDialog
+                shifts={shifts}
+                venues={venues}
+                users={users}
+                unavailabilities={unavailabilities}
+                currentUserId={currentUserId}
+                isDemo={isDemo}
+                onCreateShift={onCreateShift}
+              />
             </div>
             <div className="sm:hidden">
-              {isDemo ? (
-                <button type="button" onClick={notifyDemo} className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border border-dashed text-muted-foreground hover:bg-accent transition-colors">
-                  + Nuovo turno
-                </button>
-              ) : (
-                <CreateShiftDialog
-                  shifts={shifts}
-                  venues={venues}
-                  users={users}
-                  unavailabilities={unavailabilities}
-                  currentUserId={currentUserId}
-                />
-              )}
+              <CreateShiftDialog
+                shifts={shifts}
+                venues={venues}
+                users={users}
+                unavailabilities={unavailabilities}
+                currentUserId={currentUserId}
+                isDemo={isDemo}
+                onCreateShift={onCreateShift}
+              />
             </div>
           </div>
           <div className="flex w-full justify-center">
-            {isDemo ? (
-              <button type="button" onClick={notifyDemo} className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border border-dashed text-muted-foreground hover:bg-accent transition-colors w-full justify-center">
-                Segnala indisponibilità
-              </button>
-            ) : (
-              <MarkUnavailableDialog unavailabilities={unavailabilities} currentUserId={currentUserId} />
-            )}
+            <MarkUnavailableDialog
+              unavailabilities={unavailabilities}
+              currentUserId={currentUserId}
+              isDemo={isDemo}
+              onSaveUnavailability={onSaveUnavailability}
+              onDeleteUnavailability={onDeleteUnavailability}
+            />
           </div>
         </div>
         {selectedDate && (
@@ -256,16 +270,7 @@ export function ShiftsList({
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {isDemo ? (
-                      <button
-                        type="button"
-                        onClick={notifyDemo}
-                        className="rounded p-2 hover:bg-accent text-muted-foreground"
-                        aria-label="Modifica turno"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    ) : (isAdmin ||
+                    {(isAdmin ||
                       (shift.shift_assignees || []).some(
                         (a) => a.user?.id === currentUserId
                       )) && (
@@ -276,6 +281,9 @@ export function ShiftsList({
                         unavailabilities={unavailabilities}
                         onDeleted={handleDeleted}
                         currentUserId={currentUserId}
+                        isDemo={isDemo}
+                        onUpdateShift={onUpdateShift}
+                        onDeleteShift={onDeleteShift}
                       >
                         <button
                           type="button"

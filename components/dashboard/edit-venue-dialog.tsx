@@ -21,9 +21,10 @@ interface EditVenueDialogProps {
   onUpdated?: () => void
   children: ReactNode
   isDemo?: boolean
+  onSaveVenue?: (venueId: string, payload: { name: string; address?: string; city?: string }) => void
 }
 
-export function EditVenueDialog({ venue, onUpdated, children, isDemo = false }: EditVenueDialogProps) {
+export function EditVenueDialog({ venue, onUpdated, children, isDemo = false, onSaveVenue }: EditVenueDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -36,24 +37,25 @@ export function EditVenueDialog({ venue, onUpdated, children, isDemo = false }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    const payload = {
+      name: formData.name.trim(),
+      address: formData.address.trim(),
+      city: formData.city.trim(),
+    }
+
+    if (!payload.name) {
+      toast.error("Nome locale obbligatorio")
+      return
+    }
+
     if (isDemo) {
-      toast.info("Modalità demo", { description: "Le modifiche non vengono salvate in demo." })
+      onSaveVenue?.(venue.id, payload)
       setOpen(false)
       return
     }
 
     setIsLoading(true)
     try {
-      const payload = {
-        name: formData.name.trim(),
-        address: formData.address.trim(),
-        city: formData.city.trim(),
-      }
-
-      if (!payload.name) {
-        throw new Error("Nome locale obbligatorio")
-      }
-
       const res = await fetch(`/api/venues/${venue.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

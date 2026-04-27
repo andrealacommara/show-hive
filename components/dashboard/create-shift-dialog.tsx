@@ -49,6 +49,16 @@ interface CreateShiftDialogProps {
   users: User[]
   shifts: ShiftTemplate[]
   currentUserId: string
+  isDemo?: boolean
+  onCreateShift?: (payload: {
+    title: string
+    description?: string
+    venue_id: string
+    shift_date: string
+    start_time: string
+    end_time: string
+    assignees: string[]
+  }) => void
   unavailabilities?: {
     id: string
     start_date: string
@@ -57,7 +67,15 @@ interface CreateShiftDialogProps {
   }[]
 }
 
-export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavailabilities = [] }: CreateShiftDialogProps) {
+export function CreateShiftDialog({
+  venues,
+  users,
+  shifts,
+  currentUserId,
+  isDemo = false,
+  onCreateShift,
+  unavailabilities = [],
+}: CreateShiftDialogProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -157,6 +175,25 @@ export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavai
     }
 
     try {
+      if (isDemo) {
+        onCreateShift?.({
+          ...formData,
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+        })
+        setOpen(false)
+        setFormData({
+          title: "",
+          description: "",
+          venue_id: "",
+          assignees: [],
+          shift_date: "",
+          start_time: "",
+          end_time: "",
+        })
+        return
+      }
+
       const response = await fetch("/api/shifts", {
         method: "POST",
         headers: {

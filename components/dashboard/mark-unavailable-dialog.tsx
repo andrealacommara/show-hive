@@ -32,9 +32,18 @@ interface Unavailability {
 interface Props {
   unavailabilities: Unavailability[]
   currentUserId: string
+  isDemo?: boolean
+  onSaveUnavailability?: (payload: { id?: string; start_date: string; end_date: string; reason?: string }) => void
+  onDeleteUnavailability?: (id: string) => void
 }
 
-export function MarkUnavailableDialog({ unavailabilities, currentUserId }: Props) {
+export function MarkUnavailableDialog({
+  unavailabilities,
+  currentUserId,
+  isDemo = false,
+  onSaveUnavailability,
+  onDeleteUnavailability,
+}: Props) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [form, setForm] = useState({
@@ -80,6 +89,19 @@ export function MarkUnavailableDialog({ unavailabilities, currentUserId }: Props
 
     setIsLoading(true)
     try {
+      if (isDemo) {
+        onSaveUnavailability?.({
+          id: editingId || undefined,
+          start_date: form.start_date,
+          end_date: form.end_date,
+          reason: form.reason,
+        })
+        setForm({ start_date: "", end_date: "", reason: "" })
+        setEditingId(null)
+        setOpen(false)
+        return
+      }
+
       const endpoint = editingId ? `/api/unavailabilities/${editingId}` : "/api/unavailabilities"
       const method = editingId ? "PUT" : "POST"
       const res = await fetch(endpoint, {
@@ -116,6 +138,10 @@ export function MarkUnavailableDialog({ unavailabilities, currentUserId }: Props
   }
 
   const handleDelete = async (id: string) => {
+    if (isDemo) {
+      onDeleteUnavailability?.(id)
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {

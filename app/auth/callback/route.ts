@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getProviderAvatar, getProviderFullName } from "@/lib/profile-metadata"
 import { NextResponse } from "next/server"
 
 export async function GET(request: Request) {
@@ -25,8 +26,8 @@ export async function GET(request: Request) {
         .eq("id", user.id)
         .maybeSingle()
 
-      const providerName = user.user_metadata?.full_name || user.user_metadata?.name || user.email
-      const providerAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture
+      const providerName = getProviderFullName(user)
+      const providerAvatar = getProviderAvatar(user)
       const full_name = existingProfile?.full_name || providerName
       const avatar_url = providerAvatar || existingProfile?.avatar_url
 

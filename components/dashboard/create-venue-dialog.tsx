@@ -22,9 +22,10 @@ import { toast } from "sonner"
 interface CreateVenueDialogProps {
   currentUserId: string
   isDemo?: boolean
+  onCreateVenue?: (payload: { name: string; address?: string; city?: string }) => void
 }
 
-export function CreateVenueDialog({ currentUserId, isDemo = false }: CreateVenueDialogProps) {
+export function CreateVenueDialog({ currentUserId, isDemo = false, onCreateVenue }: CreateVenueDialogProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -37,8 +38,19 @@ export function CreateVenueDialog({ currentUserId, isDemo = false }: CreateVenue
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    const payload = {
+      name: formData.name.trim(),
+      address: formData.address.trim(),
+      city: formData.city.trim(),
+    }
+
+    if (!payload.name) {
+      toast.error("Nome locale obbligatorio")
+      return
+    }
+
     if (isDemo) {
-      toast.info("Modalità demo", { description: "Le modifiche non vengono salvate in demo." })
+      onCreateVenue?.(payload)
       setOpen(false)
       setFormData({ name: "", address: "", city: "" })
       return
@@ -47,16 +59,6 @@ export function CreateVenueDialog({ currentUserId, isDemo = false }: CreateVenue
     setIsLoading(true)
 
     try {
-      const payload = {
-        name: formData.name.trim(),
-        address: formData.address.trim(),
-        city: formData.city.trim(),
-      }
-
-      if (!payload.name) {
-        throw new Error("Nome locale obbligatorio")
-      }
-
       const response = await fetch("/api/venues", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

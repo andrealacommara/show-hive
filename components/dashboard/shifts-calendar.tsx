@@ -55,11 +55,6 @@ interface ShiftsCalendarProps {
   onSelectDay?: (day: Date) => void;
 }
 
-/**
- * Parses a YYYY-MM-DD string as a local date (not UTC).
- * Using `new Date("2024-01-15")` would parse as UTC midnight and
- * shift the date by one day in UTC+1/+2 timezones (e.g. Italy).
- */
 function parseLocalDate(dateStr: string): Date {
   const [year, month, day] = dateStr.split("-").map(Number);
   return new Date(year, (month ?? 1) - 1, day ?? 1);
@@ -75,7 +70,7 @@ export function ShiftsCalendar({
   const [currentMonth, setCurrentMonth] = useState(selectedDate || new Date());
   const currentYear = currentMonth.getFullYear();
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const years = Array.from({ length: 7 }, (_, i) => currentYear - 3 + i); // 3 anni prima/dopo
+  const years = Array.from({ length: 7 }, (_, i) => currentYear - 3 + i);
 
   const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
   const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
@@ -84,6 +79,7 @@ export function ShiftsCalendar({
     const end = endOfWeek(monthEnd, { weekStartsOn: 1 });
     return eachDayOfInterval({ start, end });
   }, [monthStart, monthEnd]);
+
   const monthOptions = useMemo(
     () =>
       Array.from({ length: 12 }, (_, i) => ({
@@ -91,15 +87,14 @@ export function ShiftsCalendar({
         short: format(new Date(2024, i, 1), "MMM", { locale: it }),
         long: format(new Date(2024, i, 1), "MMMM", { locale: it }),
       })),
-    []
+    [],
   );
   const monthLabelShort = format(currentMonth, "MMM", { locale: it });
   const monthLabelFull = format(currentMonth, "MMMM", { locale: it });
 
   const getShiftsForDay = (day: Date) => {
-    // FIX: use parseLocalDate instead of new Date() to avoid UTC offset shifting the date
     const inDay = shifts.filter((shift) =>
-      isSameDay(parseLocalDate(shift.shift_date), day)
+      isSameDay(parseLocalDate(shift.shift_date), day),
     );
     if (assigneeFilter === "all") return inDay;
     return inDay.filter((shift) => {
@@ -116,7 +111,6 @@ export function ShiftsCalendar({
         (assigneeFilter !== "unassigned" && unav.user?.id === assigneeFilter);
       return (
         matchesUser &&
-        // FIX: use parseLocalDate instead of new Date() for both bounds
         isWithinInterval(day, {
           start: parseLocalDate(unav.start_date),
           end: parseLocalDate(unav.end_date),
@@ -151,9 +145,9 @@ export function ShiftsCalendar({
               Calendario Turni
             </CardTitle>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between items-stretch">
-            {/* --- NAVIGAZIONE + MESE / ANNO --- */}
-            <div className="flex w-full items-center gap-2">
+          <div className="flex w-full flex-col gap-2 items-center sm:flex-row sm:items-center sm:justify-between">
+            {/* SINISTRA */}
+            <div className="flex items-center gap-2 flex-wrap justify-center">
               <Button
                 variant="outline"
                 size="icon"
@@ -163,16 +157,15 @@ export function ShiftsCalendar({
                 <ChevronLeft className="h-4 w-4" />
               </Button>
 
-              {/* Mese */}
               <Select
                 value={String(currentMonth.getMonth())}
                 onValueChange={(val) =>
                   setCurrentMonth(
-                    (prev) => new Date(prev.getFullYear(), Number(val), 1)
+                    (prev) => new Date(prev.getFullYear(), Number(val), 1),
                   )
                 }
               >
-                <SelectTrigger className="h-8 w-auto min-w-20 sm:min-w-27.5 text-sm font-medium">
+                <SelectTrigger className="h-8 w-auto min-w-20 sm:min-w-28 text-sm font-medium">
                   <SelectValue>
                     <span className="sm:hidden">{monthLabelShort}</span>
                     <span className="hidden sm:inline">{monthLabelFull}</span>
@@ -188,16 +181,15 @@ export function ShiftsCalendar({
                 </SelectContent>
               </Select>
 
-              {/* Anno */}
               <Select
                 value={String(currentYear)}
                 onValueChange={(val) =>
                   setCurrentMonth(
-                    (prev) => new Date(Number(val), prev.getMonth(), 1)
+                    (prev) => new Date(Number(val), prev.getMonth(), 1),
                   )
                 }
               >
-                <SelectTrigger className="h-8 w-18 text-sm font-medium">
+                <SelectTrigger className="h-8 w-22 text-sm font-medium">
                   <SelectValue>{currentYear}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -219,31 +211,40 @@ export function ShiftsCalendar({
               </Button>
 
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
-                className="h-8 text-xs ml-auto shrink-0"
-                onClick={() => setCurrentMonth(new Date())}
+                className="h-8 text-xs shrink-0"
+                onClick={() => {
+                  const today = new Date();
+                  setCurrentMonth(today);
+                  onSelectDay?.(today);
+                }}
               >
                 Oggi
               </Button>
             </div>
 
-            {/* --- FILTRO ASSEGNATARIO --- */}
+            {/* DESTRA */}
             {users.length > 0 && (
-              <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                <SelectTrigger className="h-8 w-full sm:w-40 text-sm">
-                  <SelectValue placeholder="Filtra per persona" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tutti</SelectItem>
-                  <SelectItem value="unassigned">Non assegnati</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.full_name || u.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="w-full sm:w-auto">
+                <Select
+                  value={assigneeFilter}
+                  onValueChange={setAssigneeFilter}
+                >
+                  <SelectTrigger className="h-8 w-full sm:w-40 text-sm">
+                    <SelectValue placeholder="Filtra per persona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti</SelectItem>
+                    <SelectItem value="unassigned">Non assegnati</SelectItem>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.full_name || u.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
         </div>
@@ -267,64 +268,107 @@ export function ShiftsCalendar({
             const dayShifts = getShiftsForDay(day);
             const dayUnavs = getUnavailabilitiesForDay(day);
             const isCurrentMonth = isSameMonth(day, currentMonth);
-            const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
+            const isSelected = selectedDate
+              ? isSameDay(day, selectedDate)
+              : false;
+            const hasContent = dayShifts.length > 0 || dayUnavs.length > 0;
 
             return (
               <div
                 key={day.toISOString()}
                 onClick={() => onSelectDay?.(day)}
                 className={cn(
-                  "min-h-15 sm:min-h-22.5 bg-background p-1 flex flex-col gap-0.5",
+                  "bg-background flex flex-col",
+                  "min-h-10 sm:min-h-22.5",
+                  "p-0.5 sm:p-1",
+                  "gap-0.5",
                   !isCurrentMonth && "bg-muted/30",
-                  onSelectDay && "cursor-pointer hover:bg-accent/30 transition-colors",
-                  isSelected && "ring-2 ring-inset ring-primary"
+                  onSelectDay &&
+                    "cursor-pointer hover:bg-accent/30 transition-colors",
+                  isSelected && "bg-blue-400/30",
                 )}
               >
+                {/* Numero del giorno */}
                 <span
                   className={cn(
-                    "text-[10px] sm:text-xs font-medium self-end rounded-full w-5 h-5 flex items-center justify-center",
-                    isToday(day) && "bg-primary text-primary-foreground",
-                    !isCurrentMonth && "text-muted-foreground"
+                    "text-[10px] sm:text-xs font-medium self-end flex items-center justify-center",
+                    "w-5 h-5 rounded-full transition-colors",
+
+                    isSelected && "bg-primary text-primary-foreground",
+                    !isSelected && isToday(day) && "bg-red-500 text-white",
+                    isSelected && isToday(day) && "bg-red-500 text-white border border-black",
+                    !isCurrentMonth && "text-muted-foreground",
                   )}
                 >
                   {format(day, "d")}
                 </span>
 
-                {/* Indisponibilità */}
-                {dayUnavs.map((unav) => (
-                  <div
-                    key={unav.id}
-                    className="text-[9px] sm:text-[10px] rounded px-1 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 truncate"
-                    title={`${unav.user?.full_name || unav.user?.email || "Utente"} — indisponibile`}
-                  >
-                    <span className="hidden sm:inline">
-                      {unav.user?.full_name || unav.user?.email || "N/D"}
-                    </span>
-                    <span className="sm:hidden">ND</span>
-                  </div>
-                ))}
+                {/* MOBILE: dot indicators */}
+                <div className="sm:hidden flex flex-col items-center gap-0.5 pb-0.5">
+                  {hasContent && (
+                    <div className="flex gap-0.5 flex-wrap justify-center">
+                      {dayUnavs.length > 0 && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                      )}
+                      {dayShifts.slice(0, 3).map((shift) => (
+                        <span
+                          key={shift.id}
+                          className="w-1.5 h-1.5 rounded-full bg-primary shrink-0"
+                          title={shift.title}
+                        />
+                      ))}
+                      {dayShifts.length > 3 && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary/40 shrink-0" />
+                      )}
+                    </div>
+                  )}
+                </div>
 
-                {/* Turni */}
-                {dayShifts.slice(0, 3).map((shift) => (
-                  <div
-                    key={shift.id}
-                    className="text-[9px] sm:text-[10px] rounded px-1 py-0.5 bg-primary/10 text-primary truncate"
-                    title={`${shift.title} — ${formatAssignees(shift)}`}
-                  >
-                    <span className="font-medium hidden sm:inline">
-                      {shift.start_time.slice(0, 5)}{" "}
-                    </span>
-                    {shift.title}
-                  </div>
-                ))}
-                {dayShifts.length > 3 && (
-                  <div className="text-[9px] text-muted-foreground px-1">
-                    +{dayShifts.length - 3}
-                  </div>
-                )}
+                {/* DESKTOP: testo completo */}
+                <div className="hidden sm:flex flex-col gap-0.5">
+                  {dayUnavs.map((unav) => (
+                    <div
+                      key={unav.id}
+                      className="text-[10px] rounded px-1 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 truncate"
+                      title={`${unav.user?.full_name || unav.user?.email || "Utente"} — indisponibile`}
+                    >
+                      {unav.user?.full_name || unav.user?.email || "N/D"}
+                    </div>
+                  ))}
+                  {dayShifts.slice(0, 3).map((shift) => (
+                    <div
+                      key={shift.id}
+                      className="text-[10px] rounded px-1 py-0.5 bg-primary/10 text-primary truncate"
+                      title={`${shift.title} — ${formatAssignees(shift)}`}
+                    >
+                      <span className="font-medium">
+                        {shift.start_time.slice(0, 5)}{" "}
+                      </span>
+                      {shift.title}
+                    </div>
+                  ))}
+                  {dayShifts.length > 3 && (
+                    <div className="text-[9px] text-muted-foreground px-1">
+                      +{dayShifts.length - 3}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
+        </div>
+
+        {/* Legenda mobile */}
+        <div className="sm:hidden flex items-center gap-3 mt-2 px-1 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-primary inline-block" />
+            Turno
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+            Indisponibile
+          </span>
+          <span className="ml-auto italic">Tocca un giorno per i dettagli</span>
         </div>
       </CardContent>
     </Card>

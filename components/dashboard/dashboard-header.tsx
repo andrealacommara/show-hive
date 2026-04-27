@@ -20,9 +20,10 @@ interface DashboardHeaderProps {
   user: User
   profile: Profile
   isDemo?: boolean
+  onProfileSaved?: (fullName: string) => void
 }
 
-export function DashboardHeader({ user, profile, isDemo = false }: DashboardHeaderProps) {
+export function DashboardHeader({ user, profile, isDemo = false, onProfileSaved }: DashboardHeaderProps) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -73,7 +74,7 @@ export function DashboardHeader({ user, profile, isDemo = false }: DashboardHead
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <EditProfileDialog fullName={profile?.full_name}>
+              <EditProfileDialog fullName={profile?.full_name} isDemo={isDemo} onSaved={onProfileSaved}>
                 <DropdownMenuItem
                   onSelect={(e) => {
                     e.preventDefault()

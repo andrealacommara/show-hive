@@ -1,7 +1,12 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
-import { deleteGoogleCalendarEvent, updateGoogleCalendarEvent, createGoogleCalendarEvent } from "@/lib/google-calendar"
+import {
+  deleteGoogleCalendarEvent,
+  updateGoogleCalendarEvent,
+  createGoogleCalendarEvent,
+  isMissingGoogleCalendarEventError,
+} from "@/lib/google-calendar"
 import { requireAllowed } from "@/lib/authz"
 
 function addOneDay(date: string) {
@@ -240,14 +245,28 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             await deleteGoogleCalendarEvent(fullShift.google_calendar_event_id)
             await admin.from("shifts").update({ google_calendar_event_id: null }).eq("id", id)
           } else {
-            await updateGoogleCalendarEvent(fullShift.google_calendar_event_id, {
+            const eventPayload = {
               summary: venueName ? `${fullShift.title} - ${venueName}` : fullShift.title,
               description: fullShift.description || "",
               location,
               start: { dateTime: startDateTime, timeZone: "Europe/Rome" },
               end: { dateTime: endDateTime, timeZone: "Europe/Rome" },
               attendees,
-            })
+            }
+
+            try {
+              await updateGoogleCalendarEvent(fullShift.google_calendar_event_id, eventPayload)
+            } catch (error) {
+              if (!isMissingGoogleCalendarEventError(error)) {
+                throw error
+              }
+
+              const recreatedEvent = await createGoogleCalendarEvent(eventPayload)
+              await admin
+                .from("shifts")
+                .update({ google_calendar_event_id: recreatedEvent?.id || null })
+                .eq("id", id)
+            }
           }
         } else if (assignees.length > 0) {
           const calendarEvent = await createGoogleCalendarEvent({

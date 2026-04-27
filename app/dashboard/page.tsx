@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getProviderAvatar, getProviderFullName } from "@/lib/profile-metadata"
 import { DashboardView } from "@/components/dashboard/dashboard-view"
 import type { Profile, Unavailability, User } from "@/types"
 import {
@@ -30,7 +31,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         venues={DEMO_VENUES}
         users={DEMO_USERS}
         members={DEMO_MEMBERS}
-        isAdmin={false}
+        isAdmin={true}
         unavailabilities={DEMO_UNAVAILABILITIES}
         isDemo={true}
       />
@@ -55,9 +56,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, user_id, full_name, email, avatar_url")
+    .select("id, full_name, email, avatar_url")
     .eq("id", user.id)
     .single()
+
+  const providerFullName = getProviderFullName(user)
+  const providerAvatar = getProviderAvatar(user)
+  const fullName = profile?.full_name || providerFullName
+  const avatarUrl = providerAvatar || profile?.avatar_url || null
+
+  if (!profile || profile.full_name !== fullName || profile.avatar_url !== avatarUrl || profile.email !== user.email) {
+    await supabase.from("profiles").upsert({
+      id: user.id,
+      email: user.email,
+      full_name: fullName,
+      avatar_url: avatarUrl,
+    })
+  }
 
   const { data: allUsers } = await admin
     .from("profiles")
@@ -85,15 +100,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const dashboardUser: User = {
     id: user.id,
     email: user.email ?? "",
-    full_name: typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : undefined,
+    full_name: providerFullName,
   }
 
-  const dashboardProfile: Profile = profile ?? {
+  const dashboardProfile: Profile = {
     id: user.id,
     user_id: user.id,
-    full_name: dashboardUser.full_name,
-    email: dashboardUser.email,
-    avatar_url: null,
+    full_name: fullName,
+    email: user.email ?? profile?.email,
+    avatar_url: avatarUrl,
   }
 
   const normalizedUnavailabilities: Unavailability[] = (unavailabilities ?? []).map((unavailability) => {

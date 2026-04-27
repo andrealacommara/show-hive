@@ -15,6 +15,24 @@ interface CalendarEvent {
   attendees?: Array<{ email: string }>
 }
 
+type GoogleApiError = {
+  code?: number
+  status?: number
+  response?: {
+    status?: number
+  }
+}
+
+function getGoogleApiStatus(error: unknown) {
+  const googleError = error as GoogleApiError | undefined
+  return googleError?.code ?? googleError?.status ?? googleError?.response?.status
+}
+
+export function isMissingGoogleCalendarEventError(error: unknown) {
+  const status = getGoogleApiStatus(error)
+  return status === 404 || status === 410
+}
+
 export function getCentralCalendarId() {
   const calendarId = process.env.ADMIN_GOOGLE_CALENDAR_ID
 
@@ -48,8 +66,7 @@ export async function deleteGoogleCalendarEvent(eventId: string) {
       eventId,
     })
   } catch (error) {
-    const googleError = error as { code?: number }
-    if (googleError?.code === 404) {
+    if (isMissingGoogleCalendarEventError(error)) {
       return true
     }
 
