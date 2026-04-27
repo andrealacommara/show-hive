@@ -55,6 +55,16 @@ interface ShiftsCalendarProps {
   onSelectDay?: (day: Date) => void;
 }
 
+/**
+ * Parses a YYYY-MM-DD string as a local date (not UTC).
+ * Using `new Date("2024-01-15")` would parse as UTC midnight and
+ * shift the date by one day in UTC+1/+2 timezones (e.g. Italy).
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, (month ?? 1) - 1, day ?? 1);
+}
+
 export function ShiftsCalendar({
   shifts,
   users = [],
@@ -87,8 +97,9 @@ export function ShiftsCalendar({
   const monthLabelFull = format(currentMonth, "MMMM", { locale: it });
 
   const getShiftsForDay = (day: Date) => {
+    // FIX: use parseLocalDate instead of new Date() to avoid UTC offset shifting the date
     const inDay = shifts.filter((shift) =>
-      isSameDay(new Date(shift.shift_date), day)
+      isSameDay(parseLocalDate(shift.shift_date), day)
     );
     if (assigneeFilter === "all") return inDay;
     return inDay.filter((shift) => {
@@ -105,9 +116,10 @@ export function ShiftsCalendar({
         (assigneeFilter !== "unassigned" && unav.user?.id === assigneeFilter);
       return (
         matchesUser &&
+        // FIX: use parseLocalDate instead of new Date() for both bounds
         isWithinInterval(day, {
-          start: new Date(unav.start_date),
-          end: new Date(unav.end_date),
+          start: parseLocalDate(unav.start_date),
+          end: parseLocalDate(unav.end_date),
         })
       );
     });
@@ -150,16 +162,18 @@ export function ShiftsCalendar({
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
+
+              {/* Mese */}
               <Select
                 value={String(currentMonth.getMonth())}
-                onValueChange={(value) =>
+                onValueChange={(val) =>
                   setCurrentMonth(
-                    (prev) => new Date(prev.getFullYear(), Number(value), 1)
+                    (prev) => new Date(prev.getFullYear(), Number(val), 1)
                   )
                 }
               >
-                <SelectTrigger className="h-8 text-xs sm:text-sm whitespace-nowrap w-full">
-                  <SelectValue placeholder={monthLabelShort}>
+                <SelectTrigger className="h-8 w-auto min-w-20 sm:min-w-27.5 text-sm font-medium">
+                  <SelectValue>
                     <span className="sm:hidden">{monthLabelShort}</span>
                     <span className="hidden sm:inline">{monthLabelFull}</span>
                   </SelectValue>
@@ -173,18 +187,18 @@ export function ShiftsCalendar({
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Anno */}
               <Select
                 value={String(currentYear)}
-                onValueChange={(value) =>
+                onValueChange={(val) =>
                   setCurrentMonth(
-                    (prev) => new Date(Number(value), prev.getMonth(), 1)
+                    (prev) => new Date(Number(val), prev.getMonth(), 1)
                   )
                 }
               >
-                <SelectTrigger className="h-8 text-xs sm:text-sm whitespace-nowrap w-full max-w-35">
-                  <SelectValue placeholder={currentYear}>
-                    {currentYear}
-                  </SelectValue>
+                <SelectTrigger className="h-8 w-18 text-sm font-medium">
+                  <SelectValue>{currentYear}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {years.map((y) => (
@@ -194,6 +208,7 @@ export function ShiftsCalendar({
                   ))}
                 </SelectContent>
               </Select>
+
               <Button
                 variant="outline"
                 size="icon"
@@ -202,30 +217,22 @@ export function ShiftsCalendar({
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs ml-auto shrink-0"
+                onClick={() => setCurrentMonth(new Date())}
+              >
+                Oggi
+              </Button>
             </div>
 
-            {/* --- BOTTONE OGGI --- */}
-            <Button
-              variant="default"
-              size="sm"
-              className="w-full sm:w-auto"
-              onClick={() => {
-                const today = new Date();
-                setCurrentMonth(today);
-                onSelectDay?.(today);
-              }}
-            >
-              Oggi
-            </Button>
-
-            {/* --- SELECT FILTRO UTENTI --- */}
-            <div className="w-full sm:w-auto">
-              <Select
-                value={assigneeFilter}
-                onValueChange={(v) => setAssigneeFilter(v)}
-              >
-                <SelectTrigger className="h-8 text-xs sm:text-sm w-full sm:w-50">
-                  <SelectValue placeholder="Filtro utenti" />
+            {/* --- FILTRO ASSEGNATARIO --- */}
+            {users.length > 0 && (
+              <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                <SelectTrigger className="h-8 w-full sm:w-40 text-sm">
+                  <SelectValue placeholder="Filtra per persona" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tutti</SelectItem>
@@ -237,65 +244,84 @@ export function ShiftsCalendar({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            )}
           </div>
         </div>
       </CardHeader>
-
-      <CardContent>
-        <div className="grid grid-cols-7 gap-1 sm:gap-2">
-          {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((day) => (
+      <CardContent className="p-2 sm:p-6 sm:pt-0">
+        {/* Intestazioni giorni */}
+        <div className="grid grid-cols-7 mb-1">
+          {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((d) => (
             <div
-              key={day}
-              className="text-center text-[11px] sm:text-sm font-medium text-muted-foreground pb-1 sm:pb-2"
+              key={d}
+              className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1"
             >
-              {day}
+              {d}
             </div>
           ))}
+        </div>
 
+        {/* Griglia giorni */}
+        <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border">
           {gridDays.map((day) => {
             const dayShifts = getShiftsForDay(day);
-            const dayUnavailabilities = getUnavailabilitiesForDay(day);
-            const isCurrentDay = isToday(day);
-            const isSelected = selectedDate
-              ? isSameDay(day, selectedDate)
-              : false;
-            const inMonth = isSameMonth(day, currentMonth);
+            const dayUnavs = getUnavailabilitiesForDay(day);
+            const isCurrentMonth = isSameMonth(day, currentMonth);
+            const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
 
             return (
               <div
-                key={day.toString()}
-                className={cn(
-                  "min-h-14 sm:min-h-17 p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-colors flex flex-col gap-1.5",
-                  isCurrentDay
-                    ? "bg-green-50 border-green-300 text-green-700"
-                    : isSelected
-                    ? "bg-primary/15 border-primary text-primary font-semibold"
-                    : "bg-background",
-                  !inMonth && "opacity-50",
-                  "hover:bg-accent"
-                )}
+                key={day.toISOString()}
                 onClick={() => onSelectDay?.(day)}
+                className={cn(
+                  "min-h-15 sm:min-h-22.5 bg-background p-1 flex flex-col gap-0.5",
+                  !isCurrentMonth && "bg-muted/30",
+                  onSelectDay && "cursor-pointer hover:bg-accent/30 transition-colors",
+                  isSelected && "ring-2 ring-inset ring-primary"
+                )}
               >
-                <div className="flex items-center justify-between text-[11px] sm:text-xs font-semibold">
-                  <span className="text-sm sm:text-base">
-                    {format(day, "d")}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    {dayUnavailabilities.length > 0 && (
-                      <span className="inline-flex h-3 w-3 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-amber-200 text-amber-800 text-[7px] sm:text-[10px] leading-none font-semibold">
-                        {dayUnavailabilities.length}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-1 items-center justify-center">
-                  {dayShifts.length > 0 && (
-                    <span className="inline-flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-red-500 text-white text-[9px] sm:text-[11px] font-semibold">
-                      {dayShifts.length}
-                    </span>
+                <span
+                  className={cn(
+                    "text-[10px] sm:text-xs font-medium self-end rounded-full w-5 h-5 flex items-center justify-center",
+                    isToday(day) && "bg-primary text-primary-foreground",
+                    !isCurrentMonth && "text-muted-foreground"
                   )}
-                </div>
+                >
+                  {format(day, "d")}
+                </span>
+
+                {/* Indisponibilità */}
+                {dayUnavs.map((unav) => (
+                  <div
+                    key={unav.id}
+                    className="text-[9px] sm:text-[10px] rounded px-1 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 truncate"
+                    title={`${unav.user?.full_name || unav.user?.email || "Utente"} — indisponibile`}
+                  >
+                    <span className="hidden sm:inline">
+                      {unav.user?.full_name || unav.user?.email || "N/D"}
+                    </span>
+                    <span className="sm:hidden">ND</span>
+                  </div>
+                ))}
+
+                {/* Turni */}
+                {dayShifts.slice(0, 3).map((shift) => (
+                  <div
+                    key={shift.id}
+                    className="text-[9px] sm:text-[10px] rounded px-1 py-0.5 bg-primary/10 text-primary truncate"
+                    title={`${shift.title} — ${formatAssignees(shift)}`}
+                  >
+                    <span className="font-medium hidden sm:inline">
+                      {shift.start_time.slice(0, 5)}{" "}
+                    </span>
+                    {shift.title}
+                  </div>
+                ))}
+                {dayShifts.length > 3 && (
+                  <div className="text-[9px] text-muted-foreground px-1">
+                    +{dayShifts.length - 3}
+                  </div>
+                )}
               </div>
             );
           })}

@@ -3,53 +3,15 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 import { createGoogleCalendarEvent } from "@/lib/google-calendar"
 import { requireAllowed } from "@/lib/authz"
-import type { User } from "@/types"
-
-function toErrorResponse(error: unknown) {
-  if (error && typeof error === "object" && "message" in error) {
-    const message = String(error.message || "Failed to create shift")
-    const code = "code" in error ? String(error.code || "") : ""
-
-    if (message === "Unauthorized") {
-      return { error: "Unauthorized", status: 401 }
-    }
-    if (message === "Forbidden") {
-      return { error: "Forbidden", status: 403 }
-    }
-
-    // PostgreSQL / PostgREST errors are usually client-side input or constraint issues.
-    if (code.startsWith("22") || code.startsWith("23") || code === "PGRST116") {
-      return { error: message, status: 400 }
-    }
-
-    return { error: message, status: 500 }
-  }
-
-  return { error: "Failed to create shift", status: 500 }
-}
-
-function buildDateTime(date: string, time: string) {
-  return `${date}T${time}`
-}
-
-type ShiftWithRelations = {
-  venue?: {
-    name?: string | null
-    address?: string | null
-    city?: string | null
-  } | null
-  shift_assignees?: {
-    user?: {
-      email?: string | null
-    } | null
-  }[] | null
-  google_calendar_event_id?: string | null
-}
 
 function addOneDay(date: string) {
   const d = new Date(date)
   d.setDate(d.getDate() + 1)
   return d.toISOString().slice(0, 10)
+}
+
+function toGoogleDateTime(date: string, time: string) {
+  return /^\d{2}:\d{2}$/.test(time) ? `${date}T${time}:00` : `${date}T${time}`
 }
 
 async function getUnavailableAssignees(
@@ -74,10 +36,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const supabase = await createClient()
-    const assignees: string[] = Array.isArray(body.assignees) ? body.assignees : []
-    const assignedTo = assignees[0] || null
+    const admin = createAdminClient()
 
-    // Get current user
     const {
       data: { user },
       error: userError,
@@ -89,10 +49,36 @@ export async function POST(request: Request) {
 
     await requireAllowed(user.email)
 
-    const unavailable = await getUnavailableAssignees(supabase, assignees, body.shift_date)
+    const { title, description, venue_id, shift_date, start_time, end_time, assignees: rawAssignees } = body
+
+    // Validation
+    if (!title?.trim()) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    }
+    if (!venue_id) {
+      return NextResponse.json({ error: "Venue is required" }, { status: 400 })
+    }
+    if (!shift_date) {
+      return NextResponse.json({ error: "Shift date is required" }, { status: 400 })
+    }
+    if (!start_time) {
+      return NextResponse.json({ error: "Start time is required" }, { status: 400 })
+    }
+    if (!end_time) {
+      return NextResponse.json({ error: "End time is required" }, { status: 400 })
+    }
+
+    const assignees: string[] = Array.isArray(rawAssignees) ? rawAssignees : []
+    const assignedTo = assignees[0] || null
+
+    // Check unavailability
+    const unavailable = await getUnavailableAssignees(supabase, assignees, shift_date)
     if (unavailable.length > 0) {
       const names = unavailable
-        .map((u) => (u.user as User | undefined)?.full_name || (u.user as User | undefined)?.email || "Utente")
+        .map((u) => {
+          const profile = (Array.isArray(u.user) ? u.user[0] : u.user) as { full_name?: string; email?: string } | undefined
+          return profile?.full_name || profile?.email || "Utente"
+        })
         .filter(Boolean)
         .join(", ")
       return NextResponse.json(
@@ -101,104 +87,103 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create shift in database
-    // Insert shift
-    const { data: shift, error: shiftError } = await supabase
+    // Create shift
+    const { data: newShift, error: insertError } = await admin
       .from("shifts")
       .insert({
-        title: body.title,
-        description: body.description,
-        venue_id: body.venue_id,
-        shift_date: body.shift_date,
-        start_time: body.start_time,
-        end_time: body.end_time,
-        created_by: user.id,
+        title: title.trim(),
+        description: description || null,
+        venue_id,
+        shift_date,
+        start_time,
+        end_time,
         assigned_to: assignedTo,
+        created_by: user.id,
       })
-      .select("*")
+      .select("id, venue:venues(name, address, city)")
       .single()
 
-    if (shiftError) throw shiftError
+    if (insertError) throw insertError
 
-    // Insert assignees (if any)
+    const shiftId = newShift.id
+
+    // Insert assignees
     if (assignees.length > 0) {
-      const rows = assignees.map((assigneeId) => ({ shift_id: shift.id, user_id: assigneeId }))
-      const { error: assignError } = await supabase.from("shift_assignees").upsert(rows)
-      if (assignError) throw assignError
+      const assigneeRows = assignees.map((userId) => ({ shift_id: shiftId, user_id: userId }))
+      const { error: assigneeError } = await admin.from("shift_assignees").insert(assigneeRows)
+      if (assigneeError) throw assigneeError
     }
 
-    // Reload shift with relations. If admin env/config is missing, don't fail creation.
-    let fullShift: ShiftWithRelations | null = null
-    try {
-      const admin = createAdminClient()
-      const { data } = await admin
-        .from("shifts")
-        .select(
-          `
-          *,
-          venue:venues(*),
-          shift_assignees:shift_assignees(user:profiles(id, full_name, email))
-        `,
-        )
-        .eq("id", shift.id)
-        .single()
-      fullShift = data
-    } catch (reloadError) {
-      console.error("[app] Failed to reload shift with relations:", reloadError)
-    }
-
-    // If shift is assigned to someone, create Google Calendar event on the central calendar
+    // Create Google Calendar event if there are assignees
     if (assignees.length > 0) {
       try {
-        // Format datetime for Google Calendar (handle overnight shifts)
-        const startDateTime = buildDateTime(shift.shift_date, shift.start_time)
-        const endDateDate = shift.end_time <= shift.start_time ? addOneDay(shift.shift_date) : shift.shift_date
-        const endDateTime = buildDateTime(endDateDate, shift.end_time)
+        const startDateTime = toGoogleDateTime(shift_date, start_time)
+        const endDateDate = end_time <= start_time ? addOneDay(shift_date) : shift_date
+        const endDateTime = toGoogleDateTime(endDateDate, end_time)
 
-        const venueInfo = fullShift?.venue
-        const name = venueInfo?.name?.trim()
-        const street = venueInfo?.address?.trim()
-        const city = venueInfo?.city?.trim()
+        // Get full shift data with venue and assignees for calendar
+        const { data: fullShiftData } = await admin
+          .from("shifts")
+          .select(
+            `
+            *,
+            venue:venues(name, address, city),
+            shift_assignees:shift_assignees(user:profiles(email))
+          `
+          )
+          .eq("id", shiftId)
+          .single()
 
-        // Prefer address + city for better Google parsing; fall back to name + city or just name
-        const location = street && city ? `${street}, ${city}` : street || (name && city ? `${name}, ${city}` : name || "")
+        if (!fullShiftData) {
+          throw new Error("Failed to load shift data for calendar")
+        }
 
-        const attendees =
-          fullShift?.shift_assignees?.map((a) => (a.user?.email ? { email: a.user.email } : null)).filter(Boolean) ||
-          []
-
+        const venueInfo = Array.isArray(fullShiftData.venue) ? fullShiftData.venue[0] : fullShiftData.venue
+        const locationParts = []
+        if (venueInfo?.address && venueInfo?.city) {
+          locationParts.push(`${venueInfo.address}, ${venueInfo.city}`)
+        } else if (venueInfo?.address) {
+          locationParts.push(venueInfo.address)
+        }
+        const location = locationParts.join(", ")
         const venueName = venueInfo?.name?.trim()
-        const calendarEvent = await createGoogleCalendarEvent({
-          summary: venueName ? `${shift.title} - ${venueName}` : shift.title,
-          description: shift.description || "",
+
+        const attendees = (fullShiftData.shift_assignees || [])
+          .map((sa: any) => {
+            if (Array.isArray(sa.user)) {
+              const user = sa.user[0]
+              return user?.email ? { email: user.email } : null
+            } else if (sa.user?.email) {
+              return { email: sa.user.email }
+            }
+            return null
+          })
+          .filter((a: any): a is { email: string } => a !== null)
+
+        const calendarPayload = {
+          summary: venueName ? `${title} - ${venueName}` : title,
+          description: description || "",
           location,
-          start: {
-            dateTime: startDateTime,
-            timeZone: "Europe/Rome",
-          },
-          end: {
-            dateTime: endDateTime,
-            timeZone: "Europe/Rome",
-          },
+          start: { dateTime: startDateTime, timeZone: "Europe/Rome" },
+          end: { dateTime: endDateTime, timeZone: "Europe/Rome" },
           attendees,
-        })
+        }
 
-        // Update shift with calendar event ID
-        await supabase.from("shifts").update({ google_calendar_event_id: calendarEvent.id }).eq("id", shift.id)
+        const calendarEvent = await createGoogleCalendarEvent(calendarPayload)
 
-        if (fullShift) {
-          fullShift.google_calendar_event_id = calendarEvent.id
+        if (calendarEvent?.id) {
+          await admin.from("shifts").update({ google_calendar_event_id: calendarEvent.id }).eq("id", shiftId)
         }
       } catch (calendarError) {
-        console.error("[app] Calendar event creation failed:", calendarError)
-        // Continue even if calendar creation fails
+        const errorMsg = calendarError instanceof Error ? calendarError.message : "Unknown error"
+        console.error("[app] Calendar event creation failed:", errorMsg)
+        // Don't fail the request if calendar creation fails
       }
     }
 
-    return NextResponse.json(fullShift || shift)
+    return NextResponse.json({ success: true, id: shiftId })
   } catch (error) {
     console.error("[app] Error creating shift:", error)
-    const apiError = toErrorResponse(error)
-    return NextResponse.json({ error: apiError.error }, { status: apiError.status })
+    return NextResponse.json({ error: "Failed to create shift" }, { status: 500 })
   }
 }

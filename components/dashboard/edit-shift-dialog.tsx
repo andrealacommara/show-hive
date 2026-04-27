@@ -11,6 +11,11 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useRouter } from "next/navigation"
 
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number)
+  return new Date(year, (month ?? 1) - 1, day ?? 1)
+}
+
 interface Venue {
   id: string
   name: string
@@ -39,6 +44,7 @@ interface EditShiftDialogProps {
   users: User[]
   children: React.ReactNode
   onDeleted?: (id: string) => void
+  currentUserId?: string
   unavailabilities?: {
     id: string
     start_date: string
@@ -47,7 +53,7 @@ interface EditShiftDialogProps {
   }[]
 }
 
-export function EditShiftDialog({ shift, venues, users, children, onDeleted, unavailabilities = [] }: EditShiftDialogProps) {
+export function EditShiftDialog({ shift, venues, users, children, onDeleted, currentUserId, unavailabilities = [] }: EditShiftDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -65,11 +71,11 @@ export function EditShiftDialog({ shift, venues, users, children, onDeleted, una
 
   const unavailableMap = useMemo(() => {
     if (!formData.shift_date) return new Set<string>()
-    const day = new Date(formData.shift_date)
+    const day = parseLocalDate(formData.shift_date)
     const set = new Set<string>()
     unavailabilities.forEach((u) => {
-      const start = new Date(u.start_date)
-      const end = new Date(u.end_date)
+      const start = parseLocalDate(u.start_date)
+      const end = parseLocalDate(u.end_date)
       if (day >= start && day <= end && u.user?.id) {
         set.add(u.user.id)
       }
@@ -182,6 +188,7 @@ export function EditShiftDialog({ shift, venues, users, children, onDeleted, una
                 <div className="space-y-2">
                   {users.map((user) => {
                     const selected = formData.assignees.includes(user.id)
+                    const isCurrentUser = user.id === currentUserId
                     return (
                       <button
                         type="button"
@@ -192,7 +199,10 @@ export function EditShiftDialog({ shift, venues, users, children, onDeleted, una
                         } ${unavailableMap.has(user.id) && formData.shift_date ? "opacity-50 cursor-not-allowed" : ""}`}
                         disabled={unavailableMap.has(user.id) && formData.shift_date.length > 0}
                       >
-                        <span>{user.full_name || user.email}</span>
+                        <span className="flex items-center gap-2">
+                          {user.full_name || user.email}
+                          {isCurrentUser && <Badge variant="outline" className="text-[10px]">tu</Badge>}
+                        </span>
                         <div className="flex items-center gap-2">
                           {unavailableMap.has(user.id) && formData.shift_date && (
                             <Badge variant="destructive" className="text-[10px]">

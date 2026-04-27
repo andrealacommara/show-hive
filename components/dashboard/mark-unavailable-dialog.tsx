@@ -16,6 +16,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { CalendarX } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number)
+  return new Date(year, (month ?? 1) - 1, day ?? 1)
+}
+
 interface Unavailability {
   id: string
   start_date: string
@@ -68,7 +73,7 @@ export function MarkUnavailableDialog({ unavailabilities, currentUserId }: Props
       setError("Seleziona un intervallo di date")
       return
     }
-    if (new Date(form.start_date) > new Date(form.end_date)) {
+    if (parseLocalDate(form.start_date) > parseLocalDate(form.end_date)) {
       setError("La data di fine non può precedere l'inizio")
       return
     }

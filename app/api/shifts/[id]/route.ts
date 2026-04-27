@@ -3,12 +3,15 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 import { deleteGoogleCalendarEvent, updateGoogleCalendarEvent, createGoogleCalendarEvent } from "@/lib/google-calendar"
 import { requireAllowed } from "@/lib/authz"
-import type { User } from "@/types"
 
 function addOneDay(date: string) {
   const d = new Date(date)
   d.setDate(d.getDate() + 1)
   return d.toISOString().slice(0, 10)
+}
+
+function toGoogleDateTime(date: string, time: string) {
+  return /^\d{2}:\d{2}$/.test(time) ? `${date}T${time}:00` : `${date}T${time}`
 }
 
 async function getUnavailableAssignees(
@@ -63,7 +66,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const isAdmin = access?.role === "admin"
     const isAssignee =
       shift.assigned_to === user.id ||
-      (Array.isArray(shift.shift_assignees) && shift.shift_assignees.some((sa) => sa?.user_id === user.id))
+      (Array.isArray(shift.shift_assignees) && shift.shift_assignees.some((sa: { user_id: string }) => sa?.user_id === user.id))
 
     if (!isAdmin) {
       if (shift.created_by !== user.id && !isAssignee) {
@@ -81,7 +84,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       try {
         await deleteGoogleCalendarEvent(shift.google_calendar_event_id)
       } catch (calendarError) {
-        console.error("[app] Calendar event deletion failed, rolling back DB delete:", calendarError)
+        const errorMsg = calendarError instanceof Error ? calendarError.message : "Unknown error"
+        console.error("[app] Calendar event deletion failed, rolling back DB delete:", errorMsg)
         try {
           const { shift_assignees, ...shiftRow } = shift
           await admin.from("shifts").insert(shiftRow)
@@ -90,7 +94,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
             await admin.from("shift_assignees").insert(assigneeRows)
           }
         } catch (rollbackError) {
-          console.error("[app] Rollback failed after calendar delete error:", rollbackError)
+          const rollbackMsg = rollbackError instanceof Error ? rollbackError.message : "Unknown error"
+          console.error("[app] Rollback failed after calendar delete error:", rollbackMsg)
         }
         return NextResponse.json({ error: "Failed to delete calendar event" }, { status: 502 })
       }
@@ -119,8 +124,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    await requireAllowed(user.email)
+
     // Check access: admin or assignee
-    const { data: access } = await supabase
+    const { data: access } = await admin
       .from("allowed_users")
       .select("role")
       .eq("email", user.email)
@@ -142,12 +149,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Shift not found" }, { status: 404 })
     }
 
+    const isAdmin = access?.role === "admin"
     const isAssignee =
-      existingShift.shift_assignees?.some((a) => a.user?.id === user.id) ||
+      existingShift.shift_assignees?.some((a: { user?: { id: string } }) => a.user?.id === user.id) ||
       existingShift.assigned_to === user.id
 
-    if (access?.role !== "admin" && !isAssignee) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (!isAdmin) {
+      if (existingShift.created_by !== user.id && !isAssignee) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
     }
 
     const assignees: string[] = Array.isArray(body.assignees) ? body.assignees : []
@@ -156,7 +166,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const unavailable = await getUnavailableAssignees(supabase, assignees, body.shift_date)
     if (unavailable.length > 0) {
       const names = unavailable
-        .map((u) => (u.user as User | undefined)?.full_name || (u.user as User | undefined)?.email || "Utente")
+        .map((u) => {
+          const profile = (Array.isArray(u.user) ? u.user[0] : u.user) as { full_name?: string; email?: string } | undefined
+          return profile?.full_name || profile?.email || "Utente"
+        })
         .filter(Boolean)
         .join(", ")
       return NextResponse.json(
@@ -201,9 +214,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .single()
 
     if (fullShift && (access?.role === "admin" || isAssignee)) {
-      const startDateTime = `${fullShift.shift_date}T${fullShift.start_time}`
+      const startDateTime = toGoogleDateTime(fullShift.shift_date, fullShift.start_time)
       const endDateDate = fullShift.end_time <= fullShift.start_time ? addOneDay(fullShift.shift_date) : fullShift.shift_date
-      const endDateTime = `${endDateDate}T${fullShift.end_time}`
+      const endDateTime = toGoogleDateTime(endDateDate, fullShift.end_time)
 
       const venueInfo = fullShift.venue
       const locationParts = []
@@ -216,19 +229,26 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const venueName = venueInfo?.name?.trim()
 
       const attendees =
-        fullShift.shift_assignees?.map((a) => (a.user?.email ? { email: a.user.email } : null)).filter(Boolean) ||
+        fullShift.shift_assignees?.map((a: { user?: { email?: string } }) => (a.user?.email ? { email: a.user.email } : null)).filter(Boolean) ||
         []
 
       try {
         if (fullShift.google_calendar_event_id) {
-          await updateGoogleCalendarEvent(fullShift.google_calendar_event_id, {
-            summary: venueName ? `${fullShift.title} - ${venueName}` : fullShift.title,
-            description: fullShift.description || "",
-            location,
-            start: { dateTime: startDateTime, timeZone: "Europe/Rome" },
-            end: { dateTime: endDateTime, timeZone: "Europe/Rome" },
-            attendees,
-          })
+          if (assignees.length === 0) {
+            // FIX: when all assignees are removed, delete the calendar event instead of
+            // leaving it orphaned on Google Calendar with an empty attendees list.
+            await deleteGoogleCalendarEvent(fullShift.google_calendar_event_id)
+            await admin.from("shifts").update({ google_calendar_event_id: null }).eq("id", id)
+          } else {
+            await updateGoogleCalendarEvent(fullShift.google_calendar_event_id, {
+              summary: venueName ? `${fullShift.title} - ${venueName}` : fullShift.title,
+              description: fullShift.description || "",
+              location,
+              start: { dateTime: startDateTime, timeZone: "Europe/Rome" },
+              end: { dateTime: endDateTime, timeZone: "Europe/Rome" },
+              attendees,
+            })
+          }
         } else if (assignees.length > 0) {
           const calendarEvent = await createGoogleCalendarEvent({
             summary: venueName ? `${fullShift.title} - ${venueName}` : fullShift.title,
@@ -239,11 +259,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             attendees,
           })
           if (calendarEvent?.id) {
-            await supabase.from("shifts").update({ google_calendar_event_id: calendarEvent.id }).eq("id", id)
+            await admin.from("shifts").update({ google_calendar_event_id: calendarEvent.id }).eq("id", id)
           }
         }
       } catch (calendarError) {
-        console.error("[app] Calendar event update failed:", calendarError)
+        const errorMsg = calendarError instanceof Error ? calendarError.message : "Unknown error"
+        console.error("[app] Calendar event update failed:", errorMsg)
       }
     }
 

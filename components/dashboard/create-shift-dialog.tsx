@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus } from "lucide-react"
+import { Plus, Check, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface Venue {
@@ -74,11 +74,15 @@ export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavai
 
   const unavailableMap = useMemo(() => {
     if (!formData.shift_date) return new Set<string>()
-    const day = new Date(formData.shift_date)
+    // Parse as local date to avoid UTC offset issues
+    const [y, m, d] = formData.shift_date.split("-").map(Number)
+    const day = new Date(y, (m ?? 1) - 1, d ?? 1)
     const set = new Set<string>()
     unavailabilities.forEach((u) => {
-      const start = new Date(u.start_date)
-      const end = new Date(u.end_date)
+      const [sy, sm, sd] = u.start_date.split("-").map(Number)
+      const [ey, em, ed] = u.end_date.split("-").map(Number)
+      const start = new Date(sy, (sm ?? 1) - 1, sd ?? 1)
+      const end = new Date(ey, (em ?? 1) - 1, ed ?? 1)
       if (day >= start && day <= end && u.user?.id) {
         set.add(u.user.id)
       }
@@ -126,7 +130,6 @@ export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavai
     setError(null)
     setIsLoading(true)
 
-    // Validate required fields
     if (!formData.title.trim()) {
       setError("Il titolo è obbligatorio")
       setIsLoading(false)
@@ -238,7 +241,7 @@ export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavai
                           )}
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">
                         Compila
                       </Badge>
                     </button>
@@ -280,18 +283,32 @@ export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavai
             </Select>
           </div>
 
+          {/* ── Assignee picker ── */}
           <div className="space-y-2">
-            <Label>Assegna a (multipli)</Label>
-            <div className="rounded-md border p-2">
-              <ScrollArea className="max-h-40 pr-2">
-                <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Assegna a (multipli)</Label>
+              {formData.assignees.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {formData.assignees.length} selezionat{formData.assignees.length === 1 ? "o" : "i"}
+                </span>
+              )}
+            </div>
+
+            <div className="rounded-md border">
+              {/* Scrollable list — fixed height so it never stretches the dialog */}
+              <ScrollArea className="h-44">
+                <div className="p-1 space-y-0.5">
                   {users.map((user) => {
                     const selected = formData.assignees.includes(user.id)
+                    const unavailable = unavailableMap.has(user.id) && formData.shift_date.length > 0
+                    const isMe = user.id === currentUserId
+
                     return (
                       <button
                         type="button"
                         key={user.id}
                         onClick={() =>
+                          !unavailable &&
                           setFormData((prev) => ({
                             ...prev,
                             assignees: selected
@@ -299,32 +316,81 @@ export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavai
                               : [...prev.assignees, user.id],
                           }))
                         }
-                        className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm ${
-                          selected ? "border-primary bg-primary/5" : "hover:bg-muted"
-                        } ${unavailableMap.has(user.id) && formData.shift_date ? "opacity-50 cursor-not-allowed" : ""}`}
-                        disabled={unavailableMap.has(user.id) && formData.shift_date.length > 0}
+                        disabled={unavailable}
+                        className={`
+                          w-full flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors
+                          ${selected ? "bg-primary/8 text-foreground" : "hover:bg-muted"}
+                          ${unavailable ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
+                        `}
                       >
-                        <span>{user.full_name || user.email}</span>
-                        <div className="flex items-center gap-2">
-                          {unavailableMap.has(user.id) && formData.shift_date && (
-                            <Badge variant="destructive" className="text-[10px]">
-                              ND
-                            </Badge>
-                          )}
-                          {selected && <Badge variant="secondary">Selezionato</Badge>}
-                        </div>
+                        {/* Checkbox-style indicator */}
+                        <span
+                          className={`
+                            flex h-4 w-4 shrink-0 items-center justify-center rounded border
+                            ${selected ? "bg-primary border-primary text-primary-foreground" : "border-input"}
+                          `}
+                        >
+                          {selected && <Check className="h-2.5 w-2.5" />}
+                        </span>
+
+                        {/* Name — truncated, never wraps */}
+                        <span className="flex-1 truncate min-w-0">
+                          {user.full_name || user.email}
+                        </span>
+
+                        {/* "Tu" badge — always visible for the current user */}
+                        {isMe && (
+                          <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 text-muted-foreground">
+                            tu
+                          </Badge>
+                        )}
+
+                        {/* Unavailability badge */}
+                        {unavailable && (
+                          <Badge variant="destructive" className="shrink-0 text-[10px] px-1 py-0">
+                            ND
+                          </Badge>
+                        )}
                       </button>
                     )
                   })}
                 </div>
               </ScrollArea>
+
+              {/* Selected summary — shown below the list when at least one is chosen */}
               {formData.assignees.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.assignees.map((id) => {
-                    const user = users.find((u) => u.id === id)
-                    if (!user) return null
-                    return <Badge key={id}>{user.full_name || user.email}</Badge>
-                  })}
+                <div className="border-t px-2 py-1.5">
+                  <ScrollArea className="max-h-16">
+                    <div className="flex flex-wrap gap-1">
+                      {formData.assignees.map((id) => {
+                        const user = users.find((u) => u.id === id)
+                        if (!user) return null
+                        return (
+                          <Badge
+                            key={id}
+                            variant="secondary"
+                            className="flex items-center gap-1 text-xs pr-1"
+                          >
+                            <span className="max-w-30 truncate">
+                              {user.full_name || user.email}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  assignees: prev.assignees.filter((a) => a !== id),
+                                }))
+                              }
+                              className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </Badge>
+                        )
+                      })}
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
             </div>
@@ -346,23 +412,23 @@ export function CreateShiftDialog({ venues, users, shifts, currentUserId, unavai
             <div className="space-y-2">
               <Label htmlFor="start">Ora Inizio</Label>
               <Input
-              id="start"
-              name="start_time"
-              type="time"
-              value={formData.start_time}
-              onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-              required
+                id="start"
+                name="start_time"
+                type="time"
+                value={formData.start_time}
+                onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="end">Ora Fine</Label>
               <Input
-              id="end"
-              name="end_time"
-              type="time"
-              value={formData.end_time}
-              onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-              required
+                id="end"
+                name="end_time"
+                type="time"
+                value={formData.end_time}
+                onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                required
               />
             </div>
           </div>

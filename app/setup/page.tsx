@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { CheckCircle2, ExternalLink, Copy, Check } from "lucide-react"
 import { useState } from "react"
 
-const CENTRAL_CALENDAR_EMAIL = "amministrazione.showhive@gmail.com"
+const CENTRAL_CALENDAR_EMAIL = process.env.NEXT_PUBLIC_ADMIN_GOOGLE_CALENDAR_ID || "il-tuo-calendario@google.com"
 
 export default function SetupPage() {
   const [copiedClient, setCopiedClient] = useState(false)
@@ -14,7 +14,7 @@ export default function SetupPage() {
   const [copiedEnv, setCopiedEnv] = useState(false)
 
   const scope = "https://www.googleapis.com/auth/calendar"
-  const envExample = `ADMIN_GOOGLE_CLIENT_ID=\nADMIN_GOOGLE_CLIENT_SECRET=\nADMIN_GOOGLE_REFRESH_TOKEN=`
+  const envExample = `ADMIN_GOOGLE_CLIENT_ID=\nADMIN_GOOGLE_CLIENT_SECRET=\nADMIN_GOOGLE_REFRESH_TOKEN=\nADMIN_GOOGLE_CALENDAR_ID=\nNEXT_PUBLIC_ADMIN_GOOGLE_CALENDAR_ID=`
 
   const copyToClipboard = (text: string, setCopied: (value: boolean) => void) => {
     navigator.clipboard.writeText(text)
@@ -35,7 +35,7 @@ export default function SetupPage() {
 
         <Alert>
           <AlertDescription className="text-center">
-            Non serve più il consenso degli utenti: l&apos;app usa l&apos;account amministrazione per creare e invitare.
+            Non serve più il consenso degli utenti: l&apos;app usa l&apos;account configurato per creare e invitare.
           </AlertDescription>
         </Alert>
 
@@ -47,7 +47,7 @@ export default function SetupPage() {
               </div>
               <CardTitle>Crea le credenziali OAuth</CardTitle>
             </div>
-            <CardDescription>Client ID e Secret dell&apos;account amministrazione.</CardDescription>
+            <CardDescription>Client ID e Secret dell&apos;account che possiede o gestisce il calendario.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
@@ -81,7 +81,7 @@ export default function SetupPage() {
               </div>
               <CardTitle>Ottieni il refresh token</CardTitle>
             </div>
-            <CardDescription>Serve un refresh token dell&apos;account amministrazione per mandare inviti.</CardDescription>
+            <CardDescription>Serve un refresh token dell&apos;account che userai per creare gli eventi e mandare inviti.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm font-medium">Metodo rapido: Google OAuth Playground.</p>
@@ -106,7 +106,7 @@ export default function SetupPage() {
                   {copiedScope ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copia scope
                 </Button>
               </li>
-              <li>Authorize APIs con l&apos;account {CENTRAL_CALENDAR_EMAIL} e consenti.</li>
+              <li>Authorize APIs con l&apos;account che userai per il calendario e consenti.</li>
               <li>Exchange authorization code: otterrai un refresh token da copiare.</li>
             </ol>
           </CardContent>
@@ -130,7 +130,8 @@ export default function SetupPage() {
               {copiedEnv ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copia snippet
             </Button>
             <p className="text-sm text-muted-foreground">
-              Incolla Client ID, Secret e il refresh token ottenuto. Il calendario usato rimane {CENTRAL_CALENDAR_EMAIL}.
+              Imposta anche `ADMIN_GOOGLE_CALENDAR_ID` con la mail del calendario da usare. `NEXT_PUBLIC_ADMIN_GOOGLE_CALENDAR_ID`
+              serve solo a mostrare quel valore nella pagina setup.
             </p>
           </CardContent>
         </Card>
@@ -144,8 +145,8 @@ export default function SetupPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-green-800">
-              Dopo aver impostato l&apos;env e riavviato il server, i turni creeranno eventi direttamente sul calendario
-              centrale e manderanno inviti agli assegnati.
+              Dopo aver impostato le env e riavviato il server, i turni creeranno eventi sul calendario configurato e
+              manderanno inviti agli assegnati.
             </p>
           </CardContent>
         </Card>

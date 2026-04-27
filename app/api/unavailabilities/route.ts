@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { requireAllowed } from "@/lib/authz"
 
 export async function GET() {
   const supabase = await createClient()
+
+  // FIX: authenticate the caller before returning any data.
+  // The POST/PUT/DELETE handlers already do this; the GET was the only one missing it.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  try {
+    await requireAllowed(user?.email)
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const { data, error } = await supabase
     .from("unavailabilities")

@@ -15,13 +15,22 @@ interface CalendarEvent {
   attendees?: Array<{ email: string }>
 }
 
-const CENTRAL_CALENDAR_ID = "amministrazione.showhive@gmail.com"
+export function getCentralCalendarId() {
+  const calendarId = process.env.ADMIN_GOOGLE_CALENDAR_ID
+
+  if (!calendarId) {
+    throw new Error("Missing Google Calendar env: ADMIN_GOOGLE_CALENDAR_ID")
+  }
+
+  return calendarId
+}
 
 export async function createGoogleCalendarEvent(event: CalendarEvent) {
   const calendar = getCalendarClient()
+  const calendarId = getCentralCalendarId()
 
   const { data } = await calendar.events.insert({
-    calendarId: CENTRAL_CALENDAR_ID,
+    calendarId,
     requestBody: event,
     sendUpdates: "all",
   })
@@ -31,10 +40,11 @@ export async function createGoogleCalendarEvent(event: CalendarEvent) {
 
 export async function deleteGoogleCalendarEvent(eventId: string) {
   const calendar = getCalendarClient()
+  const calendarId = getCentralCalendarId()
 
   try {
     await calendar.events.delete({
-      calendarId: CENTRAL_CALENDAR_ID,
+      calendarId,
       eventId,
     })
   } catch (error) {
@@ -51,8 +61,9 @@ export async function deleteGoogleCalendarEvent(eventId: string) {
 
 export async function updateGoogleCalendarEvent(eventId: string, event: Partial<CalendarEvent>) {
   const calendar = getCalendarClient()
+  const calendarId = getCentralCalendarId()
   const { data } = await calendar.events.patch({
-    calendarId: CENTRAL_CALENDAR_ID,
+    calendarId,
     eventId,
     requestBody: event,
     sendUpdates: "all",

@@ -102,7 +102,7 @@ Supabase (PostgreSQL)
   └── public.unavailabilities ← Unavailability date ranges
 
 Google Calendar API
-  └── Central calendar (amministrazione.showhive@gmail.com)
+  └── Central calendar (`ADMIN_GOOGLE_CALENDAR_ID`)
         ← Events created/updated/deleted server-side
         ← Invites sent to assignees via sendUpdates: "all"
 ```
@@ -196,12 +196,12 @@ Primary key: `(shift_id, user_id)`.
 show-hive/
 ├── app/
 │   ├── api/
-│   │   ├── members/          # GET (list), POST (add); [id]/ PUT, DELETE
+│   │   ├── members/          # GET (list), POST (add); [id]/ PATCH, DELETE
 │   │   ├── profile/          # PUT (update own profile)
-│   │   ├── shifts/           # GET (list), POST (create); [id]/ PUT, DELETE
-│   │   │   └── [id]/assignees/ # PUT (replace assignee list)
+│   │   ├── shifts/           # POST (create); [id]/ PUT, DELETE
+│   │   │   └── [id]/assignees/ # GET (fetch assignee list)
 │   │   ├── unavailabilities/ # GET, POST; [id]/ PUT, DELETE
-│   │   └── venues/           # GET, POST; [id]/ PUT, DELETE
+│   │   └── venues/           # POST; [id]/ PUT, DELETE
 │   ├── auth/
 │   │   ├── callback/         # OAuth redirect handler
 │   │   ├── login/            # Login page
@@ -263,7 +263,7 @@ show-hive/
 
 ### Prerequisites
 
-- **Node.js** ≥ 18
+- **Node.js** ≥ 20.9.0
 - **[pnpm](https://pnpm.io/)** (recommended) or npm
 - A [Supabase](https://supabase.com/) project
 - A [Google Cloud](https://console.cloud.google.com/) project with the **Google Calendar API** enabled and OAuth credentials configured
@@ -313,7 +313,7 @@ See the in-app guide at `/setup`, or follow these steps:
 1. Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials).
 2. Create an **OAuth 2.0 Client ID** (Web application). Add your domain (and `http://localhost:3000` for local development) to the authorized origins/redirect URIs.
 3. Enable the **Google Calendar API** under Library.
-4. Use [Google OAuth Playground](https://developers.google.com/oauthplayground) to obtain a **refresh token** for the central admin Google account (`amministrazione.showhive@gmail.com` or your own admin email):
+4. Use [Google OAuth Playground](https://developers.google.com/oauthplayground) to obtain a **refresh token** for the central admin Google account (for example the shared calendar owner, or your own admin email):
    - In the playground settings, check **"Use your own OAuth credentials"** and enter your Client ID and Secret.
    - Authorize the scope `https://www.googleapis.com/auth/calendar`.
    - Exchange the authorization code and copy the `refresh_token`.
@@ -337,6 +337,8 @@ SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 ADMIN_GOOGLE_CLIENT_ID=<your-oauth-client-id>
 ADMIN_GOOGLE_CLIENT_SECRET=<your-oauth-client-secret>
 ADMIN_GOOGLE_REFRESH_TOKEN=<refresh-token-for-admin-account>
+ADMIN_GOOGLE_CALENDAR_ID=<calendar-id-or-email>
+NEXT_PUBLIC_ADMIN_GOOGLE_CALENDAR_ID=<same-calendar-id-for-setup-page>
 ```
 
 > ⚠️ **Security note:** Never commit `.env` or `.env.local` to version control. The `SUPABASE_SERVICE_ROLE_KEY` and Google credentials are sensitive and must be kept server-side only.
@@ -351,7 +353,7 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000). You will be redirected to the login page.
 
-**First-time bootstrap:** The first user to log in can add themselves to `allowed_users` as an admin (the RLS policy permits insertion when no admin exists yet). After that, only existing admins can add new members.
+**First-time bootstrap:** seed the first `allowed_users` row manually in Supabase with role `admin` before trying to use the dashboard. The database policy allows bootstrapping the first admin, but the current app flow redirects non-whitelisted users to `/auth/unauthorized`, so the initial insert is not exposed via UI.
 
 ---
 
@@ -365,6 +367,8 @@ Open [http://localhost:3000](http://localhost:3000). You will be redirected to t
 | `ADMIN_GOOGLE_CLIENT_ID` | ✅ | OAuth 2.0 Client ID for Google Calendar |
 | `ADMIN_GOOGLE_CLIENT_SECRET` | ✅ | OAuth 2.0 Client Secret |
 | `ADMIN_GOOGLE_REFRESH_TOKEN` | ✅ | Refresh token for the central calendar account |
+| `ADMIN_GOOGLE_CALENDAR_ID` | ✅ | Google Calendar ID or calendar owner email used for event sync |
+| `NEXT_PUBLIC_ADMIN_GOOGLE_CALENDAR_ID` | Optional | Calendar ID shown in the `/setup` page only |
 
 ---
 
@@ -377,7 +381,7 @@ ShowHive uses a **server-side, single-account** approach for Google Calendar. Al
 - When a shift is created or updated with assignees, an event is inserted on the central calendar and email invitations are sent to all assignees automatically.
 - When a shift is deleted or its assignees are changed, the corresponding calendar event is deleted or updated.
 
-The central calendar email is hardcoded in `lib/google-calendar.ts` as `CENTRAL_CALENDAR_ID`. Change this constant to use a different calendar.
+The central calendar is selected through `ADMIN_GOOGLE_CALENDAR_ID` in [lib/google-calendar.ts](/Users/lacco/Downloads/show-hive/lib/google-calendar.ts).
 
 ---
 
@@ -399,7 +403,7 @@ The central calendar email is hardcoded in `lib/google-calendar.ts` as `CENTRAL_
 | `requireAllowed(email)` | Throws `"Unauthorized"` if the user is not in `allowed_users`. |
 | `requireAdmin(email)` | Throws `"Forbidden"` if the user's role is not `'admin'`. |
 
-All API route handlers call at least `requireAllowed` before processing any mutation.
+The main protected route handlers use `requireAllowed` and `requireAdmin` to enforce whitelist and role checks. A few endpoints also rely on authenticated ownership checks directly in the handler and/or RLS.
 
 ---
 
@@ -411,11 +415,10 @@ All endpoints are under `/app/api/` and follow Next.js Route Handler conventions
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/shifts` | Member | List all shifts |
 | `POST` | `/api/shifts` | Member | Create a shift; triggers Google Calendar event |
-| `PUT` | `/api/shifts/[id]` | Member (creator or admin) | Update shift; syncs calendar event |
-| `DELETE` | `/api/shifts/[id]` | Member (creator or admin) | Delete shift; removes calendar event |
-| `PUT` | `/api/shifts/[id]/assignees` | Member (creator or admin) | Replace the assignee list |
+| `PUT` | `/api/shifts/[id]` | Member (creator, assignee, or admin) | Update shift; syncs calendar event |
+| `DELETE` | `/api/shifts/[id]` | Member (creator, assignee, or admin) | Delete shift; removes calendar event |
+| `GET` | `/api/shifts/[id]/assignees` | Member | Return the assignee list for one shift |
 
 **POST/PUT body fields:**
 
@@ -437,18 +440,17 @@ The API checks unavailability for all assignees and returns `400` if any assigne
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/venues` | Member | List all venues |
 | `POST` | `/api/venues` | Member | Create a venue |
-| `PUT` | `/api/venues/[id]` | Creator / Admin | Update a venue |
-| `DELETE` | `/api/venues/[id]` | Creator / Admin | Delete a venue |
+| `PUT` | `/api/venues/[id]` | Admin | Update a venue |
+| `DELETE` | `/api/venues/[id]` | Admin | Delete a venue |
 
 ### Members — `/api/members`
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/members` | Member | List all allowed users |
+| `GET` | `/api/members` | Admin | List all allowed users |
 | `POST` | `/api/members` | Admin | Add a new allowed user |
-| `PUT` | `/api/members/[id]` | Admin | Update role |
+| `PATCH` | `/api/members/[id]` | Admin | Update role |
 | `DELETE` | `/api/members/[id]` | Admin | Remove a user from the whitelist |
 
 ### Unavailabilities — `/api/unavailabilities`
@@ -464,7 +466,7 @@ The API checks unavailability for all assignees and returns `400` if any assigne
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `PUT` | `/api/profile` | Self | Update own `full_name` / `avatar_url` |
+| `PUT` | `/api/profile` | Self | Update `profiles.full_name` from `first_name` and `last_name` |
 
 ---
 
@@ -475,16 +477,17 @@ The API checks unavailability for all assignees and returns `400` if any assigne
 | View dashboard | ✅ | ✅ |
 | Create shifts | ✅ | ✅ |
 | Edit/delete own shifts | ✅ | ✅ |
+| Edit/delete assigned shifts | ✅ | ✅ |
 | Edit/delete any shift | ❌ | ✅ |
-| Create/edit venues | ✅ | ✅ |
-| Delete own venues | ✅ | ✅ |
-| Delete any venue | ❌ | ✅ |
+| Create venues | ✅ | ✅ |
+| Edit/delete venues | ❌ | ✅ |
 | Manage unavailabilities (own) | ✅ | ✅ |
 | View all unavailabilities | ✅ | ✅ |
+| View members list | ❌ | ✅ |
 | Add/remove members | ❌ | ✅ |
 | Change member roles | ❌ | ✅ |
 
-Permissions are enforced both at the API layer (via `requireAdmin` / `requireAllowed`) and at the database layer via Supabase Row Level Security policies.
+Permissions are enforced both at the API layer (via `requireAdmin` / `requireAllowed`) and at the database layer via Supabase Row Level Security policies. Note that some reads in the dashboard are done server-side with the service-role client rather than through public `GET /api/*` endpoints.
 
 ---
 
@@ -535,7 +538,7 @@ The application is designed to deploy on **Vercel** (the `@vercel/analytics` pac
 5. Deploy. Vercel will run `pnpm build` automatically.
 
 For other platforms, ensure the following:
-- Node.js ≥ 18 runtime.
+- Node.js ≥ 20.9.0 runtime.
 - All environment variables are set on the server (never exposed to the client).
 - The server can reach `supabase.co` and `googleapis.com`.
 
@@ -545,7 +548,7 @@ For other platforms, ensure the following:
 
 1. Fork the repository and create a feature branch: `git checkout -b feature/your-feature`.
 2. Make your changes and ensure TypeScript compiles: `pnpm build`.
-3. Lint your code: `pnpm lint`.
+3. Lint your code: `pnpm lint` after adding an ESLint config for the repo, or use your preferred validation flow if linting is not yet configured.
 4. Open a pull request with a clear description of the changes.
 
 > Note: `next.config.mjs` currently has `typescript.ignoreBuildErrors: true`. It is recommended to fix any TypeScript errors rather than relying on this flag in production.

@@ -19,6 +19,11 @@ import { MarkUnavailableDialog } from "./mark-unavailable-dialog";
 import { toast } from "sonner";
 import type { Shift, Venue, User, Unavailability } from "@/types";
 
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, (month ?? 1) - 1, day ?? 1);
+}
+
 interface ShiftsListProps {
   shifts: Shift[];
   venues: Venue[];
@@ -56,7 +61,7 @@ export function ShiftsList({
   const upcomingShifts = useMemo(() => {
     const today = startOfDay(new Date()).getTime();
     return localShifts.filter((shift) => {
-      const shiftDay = startOfDay(new Date(shift.shift_date)).getTime();
+      const shiftDay = startOfDay(parseLocalDate(shift.shift_date)).getTime();
       return shiftDay >= today;
     });
   }, [localShifts]);
@@ -64,7 +69,7 @@ export function ShiftsList({
   const filteredShifts = useMemo(() => {
     const base = selectedDate
       ? localShifts.filter((shift) =>
-          isSameDay(new Date(shift.shift_date), selectedDate)
+          isSameDay(parseLocalDate(shift.shift_date), selectedDate)
         )
       : upcomingShifts;
 
@@ -96,8 +101,8 @@ export function ShiftsList({
     if (!selectedDate) return [];
     return unavailabilities.filter((unav) =>
       isWithinInterval(selectedDate, {
-        start: new Date(unav.start_date),
-        end: new Date(unav.end_date),
+        start: parseLocalDate(unav.start_date),
+        end: parseLocalDate(unav.end_date),
       })
     );
   }, [selectedDate, unavailabilities]);
@@ -199,11 +204,13 @@ export function ShiftsList({
               <SelectItem value="all">Tutti gli utenti</SelectItem>
               <SelectItem value="unassigned">Non assegnati</SelectItem>
               <SelectItem value="me">Assegnati a me</SelectItem>
-              {users.map((user) => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.full_name || user.email}
-                </SelectItem>
-              ))}
+              {users
+                .filter((user) => user.id !== currentUserId)
+                .map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.full_name || user.email}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           <Select
@@ -268,6 +275,7 @@ export function ShiftsList({
                         users={users}
                         unavailabilities={unavailabilities}
                         onDeleted={handleDeleted}
+                        currentUserId={currentUserId}
                       >
                         <button
                           type="button"
@@ -285,7 +293,7 @@ export function ShiftsList({
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Clock className="h-4 w-4" />
                     <span>
-                      {format(new Date(shift.shift_date), "EEEE d MMMM yyyy", {
+                      {format(parseLocalDate(shift.shift_date), "EEEE d MMMM yyyy", {
                         locale: it,
                       })}
                     </span>
