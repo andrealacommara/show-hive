@@ -4,6 +4,17 @@
 
 ---
 
+## Live Demo
+
+🌐 https://show-hive-gestionale.vercel.app/
+
+## Preview
+
+![Login](./docs/login.png)
+![Calendar View](./docs/calendar-view.png)
+![Tab View](./docs/tab-view.png)
+![Members and Events](./docs/members-and-events.png)
+
 ## Table of Contents
 
 - [Overview](#overview)
