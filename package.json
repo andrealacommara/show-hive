@@ -1,12 +1,17 @@
 {
   "name": "show-hive-gestionale",
   "version": "0.1.0",
+  "description": "Modern shift management platform with Google Calendar integration built with Next.js, Supabase, and TypeScript",
   "private": true,
   "scripts": {
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
     "start": "next start"
   },
   "dependencies": {
@@ -67,15 +72,25 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@tailwindcss/postcss": "^4.2.4",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
     "@types/node": "^22.19.17",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/ui": "^1.0.4",
+    "@vitest/coverage-v8": "^1.0.4",
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.2.4",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "postcss": "^8.5.12",
     "prettier": "^3.2.5",
     "tailwindcss": "^4.2.4",
     "tw-animate-css": "1.3.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^1.0.4"
   }
 }

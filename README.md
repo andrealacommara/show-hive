@@ -27,12 +27,14 @@
   - [Prerequisites](#prerequisites)
   - [1. Clone the repository](#1-clone-the-repository)
   - [2. Install dependencies](#2-install-dependencies)
-  - [3. Set up Supabase](#3-set-up-supabase)
-  - [4. Set up Google Calendar integration](#4-set-up-google-calendar-integration)
-  - [5. Configure environment variables](#5-configure-environment-variables)
-  - [6. Run the development server](#6-run-the-development-server)
+  - [3. Run tests (optional but recommended)](#3-run-tests-optional-but-recommended)
+  - [4. Set up Supabase](#4-set-up-supabase)
+  - [5. Set up Google Calendar integration](#5-set-up-google-calendar-integration)
+  - [6. Configure environment variables](#6-configure-environment-variables)
+  - [7. Run the development server](#7-run-the-development-server)
 - [First-Time Bootstrap](#first-time-bootstrap)
 - [Environment Variables](#environment-variables)
+- [Testing](#testing)
 - [Google Calendar Setup](#google-calendar-setup)
 - [Authentication & Authorization](#authentication--authorization)
 - [API Reference](#api-reference)
@@ -312,7 +314,26 @@ cd show-hive
 pnpm install
 ```
 
-### 3. Set up Supabase
+### 3. Run tests (optional but recommended)
+
+The project includes comprehensive unit and integration tests:
+
+```bash
+pnpm test              # Run all tests in watch mode
+pnpm test:ui           # Run tests with interactive UI
+pnpm test:coverage     # Generate coverage report
+```
+
+**Test Coverage:**
+- ✅ 51 unit tests covering API endpoints, validation logic, and business rules
+- Google Calendar utilities (date formatting, error handling)
+- Shifts API (validation, date calculations)
+- Venues API (input validation, location formatting)
+- Members API (role management, authorization rules)
+
+---
+
+### 4. Set up Supabase
 
 1. Create a new project at [supabase.com](https://supabase.com).
 2. In the Supabase SQL editor, run the migration scripts **in order**:
@@ -375,13 +396,41 @@ NEXT_PUBLIC_ADMIN_GOOGLE_CALENDAR_ID=<same-calendar-id-for-setup-page>
 
 ---
 
-### 6. Run the development server
+### 7. Run the development server
 
 ```bash
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). You will be redirected to the login page.
+
+---
+
+## Development
+
+### Available Commands
+
+```bash
+pnpm dev                # Start development server with hot reload
+pnpm build              # Build for production
+pnpm start              # Start production server
+pnpm lint               # Run ESLint on all files
+pnpm lint:fix           # Fix linting issues automatically
+pnpm format             # Format code with Prettier
+pnpm test               # Run tests in watch mode
+pnpm test:ui            # Run tests with interactive UI
+pnpm test:coverage      # Generate test coverage report
+```
+
+### Code Quality Standards
+
+- **TypeScript strict mode** — all code is fully typed
+- **ESLint** — enforces code style and best practices (import ordering, hook rules, accessibility)
+- **Prettier** — automatic code formatting
+- **Unit tests** — 51 tests covering validation, business logic, and edge cases
+- **Build validation** — production build must compile without errors
+
+All code must pass `pnpm build` and `pnpm test` before committing.
 
 ---
 
@@ -420,6 +469,50 @@ VALUES ('your-admin-email@example.com', 'admin');
 | `ADMIN_GOOGLE_REFRESH_TOKEN`           | ✅       | Refresh token for the central calendar account                 |
 | `ADMIN_GOOGLE_CALENDAR_ID`             | ✅       | Google Calendar ID or calendar owner email used for event sync |
 | `NEXT_PUBLIC_ADMIN_GOOGLE_CALENDAR_ID` | Optional | Calendar ID shown in the `/setup` page only                    |
+
+---
+
+## Testing
+
+ShowHive includes comprehensive unit and integration tests using **Vitest**. Tests cover critical functionality including API validation, date calculations, authorization rules, and business logic.
+
+### Running Tests
+
+```bash
+pnpm test              # Run tests in watch mode (re-runs on file changes)
+pnpm test:ui           # Open interactive test UI in browser
+pnpm test:coverage     # Generate coverage report
+```
+
+### Test Coverage
+
+| Module | Tests | Coverage |
+|--------|-------|----------|
+| **Google Calendar utilities** | 9 tests | Error handling, date formatting, environment validation |
+| **Shifts API** | 16 tests | Input validation, date/time calculations, business logic |
+| **Venues API** | 12 tests | Venue data validation, location formatting |
+| **Members API** | 14 tests | Role management, admin enforcement, authorization rules |
+| **Total** | **51 tests** | Comprehensive validation & logic coverage |
+
+### Test Structure
+
+Tests are located in `__tests__/` directory:
+
+```
+__tests__/
+├── api/
+│   ├── shifts.test.ts      # 16 tests for shift creation/validation
+│   ├── venues.test.ts      # 12 tests for venue management
+│   └── members.test.ts     # 14 tests for role-based access control
+└── lib/
+    └── google-calendar.test.ts  # 9 tests for calendar utilities
+```
+
+Each test file validates:
+- **Input validation** — required fields, format checks, type safety
+- **Business logic** — date calculations, timezone handling, role enforcement
+- **Error cases** — missing data, invalid values, constraint violations
+- **Edge cases** — midnight shifts, multi-day unavailability, multiple admins
 
 ---
 
@@ -751,8 +844,16 @@ For other platforms, ensure the following:
 
 1. Fork the repository and create a feature branch: `git checkout -b feature/your-feature`.
 2. Make your changes and ensure TypeScript compiles: `pnpm build`.
-3. Lint your code: `pnpm lint` after adding an ESLint config for the repo, or use your preferred validation flow if linting is not yet configured.
-4. Open a pull request with a clear description of the changes.
+3. Run tests: `pnpm test` — all tests must pass.
+4. Lint your code: `pnpm lint --fix` to auto-fix issues, or `pnpm lint` to check.
+5. Format code: `pnpm format` to ensure consistent style.
+6. Open a pull request with a clear description of the changes and test coverage details.
+
+When contributing:
+- Add tests for new features or bug fixes
+- Update documentation if you change behavior
+- Follow the existing code style (enforced by ESLint and Prettier)
+- Ensure the production build passes: `pnpm build`
 
 ---
 
