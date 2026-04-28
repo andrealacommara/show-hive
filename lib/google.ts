@@ -1,6 +1,6 @@
-import { calendar_v3, google } from "googleapis"
+import { calendar_v3, google } from 'googleapis'
 
-const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar"
+const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar'
 
 type OAuthEnv = {
   clientId: string
@@ -17,7 +17,9 @@ function loadOAuthEnv(): OAuthEnv {
   const refreshToken = process.env.ADMIN_GOOGLE_REFRESH_TOKEN
 
   if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error("Missing Google OAuth env: ADMIN_GOOGLE_CLIENT_ID / ADMIN_GOOGLE_CLIENT_SECRET / ADMIN_GOOGLE_REFRESH_TOKEN")
+    throw new Error(
+      'Missing Google OAuth env: ADMIN_GOOGLE_CLIENT_ID / ADMIN_GOOGLE_CLIENT_SECRET / ADMIN_GOOGLE_REFRESH_TOKEN'
+    )
   }
 
   return { clientId, clientSecret, refreshToken }
@@ -42,7 +44,7 @@ export function getCalendarClient() {
   if (cachedCalendar) return cachedCalendar
 
   const auth = getAuthClient()
-  cachedCalendar = google.calendar({ version: "v3", auth })
+  cachedCalendar = google.calendar({ version: 'v3', auth })
 
   return cachedCalendar
 }

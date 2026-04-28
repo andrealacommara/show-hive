@@ -83,19 +83,19 @@
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | [Next.js 16](https://nextjs.org/) (App Router) |
-| Language | TypeScript 5 |
-| Styling | Tailwind CSS 4 |
-| UI Components | [shadcn/ui](https://ui.shadcn.com/) + Radix UI primitives |
-| Icons | [Lucide React](https://lucide.dev/) |
-| Forms | React Hook Form + Zod |
-| Backend / DB | [Supabase](https://supabase.com/) (PostgreSQL + Auth + RLS) |
-| Calendar sync | [Google Calendar API](https://developers.google.com/calendar) via `googleapis` |
-| Date utilities | `date-fns` + `react-day-picker` |
-| Analytics | Vercel Analytics |
-| Package manager | [pnpm](https://pnpm.io/) |
+| Layer           | Technology                                                                     |
+| --------------- | ------------------------------------------------------------------------------ |
+| Framework       | [Next.js 16](https://nextjs.org/) (App Router)                                 |
+| Language        | TypeScript 5                                                                   |
+| Styling         | Tailwind CSS 4                                                                 |
+| UI Components   | [shadcn/ui](https://ui.shadcn.com/) + Radix UI primitives                      |
+| Icons           | [Lucide React](https://lucide.dev/)                                            |
+| Forms           | React Hook Form + Zod                                                          |
+| Backend / DB    | [Supabase](https://supabase.com/) (PostgreSQL + Auth + RLS)                    |
+| Calendar sync   | [Google Calendar API](https://developers.google.com/calendar) via `googleapis` |
+| Date utilities  | `date-fns` + `react-day-picker`                                                |
+| Analytics       | Vercel Analytics                                                               |
+| Package manager | [pnpm](https://pnpm.io/)                                                       |
 
 ---
 
@@ -139,79 +139,83 @@ The application runs entirely server-side for data fetching (dashboard page uses
 ## Database Schema
 
 ### `profiles`
+
 Automatically populated when a user first signs in (via a PostgreSQL trigger on `auth.users`).
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | FK → `auth.users.id` |
-| `email` | `text` | |
-| `full_name` | `text` | From Google OAuth metadata |
-| `avatar_url` | `text` | From Google OAuth metadata |
-| `created_at` | `timestamptz` | |
-| `updated_at` | `timestamptz` | |
+| Column       | Type          | Notes                      |
+| ------------ | ------------- | -------------------------- |
+| `id`         | `uuid`        | FK → `auth.users.id`       |
+| `email`      | `text`        |                            |
+| `full_name`  | `text`        | From Google OAuth metadata |
+| `avatar_url` | `text`        | From Google OAuth metadata |
+| `created_at` | `timestamptz` |                            |
+| `updated_at` | `timestamptz` |                            |
 
 ### `allowed_users`
+
 Whitelist of users permitted to access the app, with their role.
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | PK |
-| `email` | `text` | Unique |
-| `role` | `text` | `'admin'` or `'member'` |
-| `created_by` | `uuid` | FK → `auth.users.id` |
-| `created_at` | `timestamptz` | |
+| Column       | Type          | Notes                   |
+| ------------ | ------------- | ----------------------- |
+| `id`         | `uuid`        | PK                      |
+| `email`      | `text`        | Unique                  |
+| `role`       | `text`        | `'admin'` or `'member'` |
+| `created_by` | `uuid`        | FK → `auth.users.id`    |
+| `created_at` | `timestamptz` |                         |
 
 A database trigger (`ensure_admin_exists_trigger`) prevents the last admin from being removed or downgraded.
 
 ### `venues`
+
 Locations where shifts can take place.
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | PK |
-| `name` | `text` | |
-| `address` | `text` | |
-| `city` | `text` | |
-| `created_by` | `uuid` | FK → `auth.users.id` |
-| `created_at` / `updated_at` | `timestamptz` | |
+| Column                      | Type          | Notes                |
+| --------------------------- | ------------- | -------------------- |
+| `id`                        | `uuid`        | PK                   |
+| `name`                      | `text`        |                      |
+| `address`                   | `text`        |                      |
+| `city`                      | `text`        |                      |
+| `created_by`                | `uuid`        | FK → `auth.users.id` |
+| `created_at` / `updated_at` | `timestamptz` |                      |
 
 ### `shifts`
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | PK |
-| `venue_id` | `uuid` | FK → `venues.id` (cascade delete) |
-| `assigned_to` | `uuid` | FK → `profiles.id` (legacy single-assignee, set null on delete) |
-| `title` | `text` | |
-| `description` | `text` | |
-| `shift_date` | `date` | |
-| `start_time` | `time` | |
-| `end_time` | `time` | |
-| `google_calendar_event_id` | `text` | Stored after calendar sync |
-| `created_by` | `uuid` | FK → `auth.users.id` |
-| `created_at` / `updated_at` | `timestamptz` | |
+| Column                      | Type          | Notes                                                           |
+| --------------------------- | ------------- | --------------------------------------------------------------- |
+| `id`                        | `uuid`        | PK                                                              |
+| `venue_id`                  | `uuid`        | FK → `venues.id` (cascade delete)                               |
+| `assigned_to`               | `uuid`        | FK → `profiles.id` (legacy single-assignee, set null on delete) |
+| `title`                     | `text`        |                                                                 |
+| `description`               | `text`        |                                                                 |
+| `shift_date`                | `date`        |                                                                 |
+| `start_time`                | `time`        |                                                                 |
+| `end_time`                  | `time`        |                                                                 |
+| `google_calendar_event_id`  | `text`        | Stored after calendar sync                                      |
+| `created_by`                | `uuid`        | FK → `auth.users.id`                                            |
+| `created_at` / `updated_at` | `timestamptz` |                                                                 |
 
 ### `shift_assignees`
+
 Junction table for multi-assignee support.
 
-| Column | Type | Notes |
-|---|---|---|
-| `shift_id` | `uuid` | FK → `shifts.id` (cascade) |
-| `user_id` | `uuid` | FK → `profiles.id` (cascade) |
-| `created_at` | `timestamptz` | |
+| Column       | Type          | Notes                        |
+| ------------ | ------------- | ---------------------------- |
+| `shift_id`   | `uuid`        | FK → `shifts.id` (cascade)   |
+| `user_id`    | `uuid`        | FK → `profiles.id` (cascade) |
+| `created_at` | `timestamptz` |                              |
 
 Primary key: `(shift_id, user_id)`.
 
 ### `unavailabilities`
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | PK |
-| `user_id` | `uuid` | FK → `profiles.id` (cascade) |
-| `start_date` | `date` | |
-| `end_date` | `date` | |
-| `reason` | `text` | Optional |
-| `created_at` / `updated_at` | `timestamptz` | |
+| Column                      | Type          | Notes                        |
+| --------------------------- | ------------- | ---------------------------- |
+| `id`                        | `uuid`        | PK                           |
+| `user_id`                   | `uuid`        | FK → `profiles.id` (cascade) |
+| `start_date`                | `date`        |                              |
+| `end_date`                  | `date`        |                              |
+| `reason`                    | `text`        | Optional                     |
+| `created_at` / `updated_at` | `timestamptz` |                              |
 
 ---
 
@@ -323,6 +327,7 @@ scripts/003_allowed_users.sql
 3. In your Supabase project, go to **Authentication → Providers → Google** and enable Google OAuth. You will need a Google OAuth Client ID and Secret (see next section).
 
 4. Set the redirect URL in Supabase Auth to:
+
    ```
    https://<your-domain>/auth/callback
    ```
@@ -405,16 +410,16 @@ VALUES ('your-admin-email@example.com', 'admin');
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anonymous/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase service role key (server only) |
-| `ADMIN_GOOGLE_CLIENT_ID` | ✅ | OAuth 2.0 Client ID for Google Calendar |
-| `ADMIN_GOOGLE_CLIENT_SECRET` | ✅ | OAuth 2.0 Client Secret |
-| `ADMIN_GOOGLE_REFRESH_TOKEN` | ✅ | Refresh token for the central calendar account |
-| `ADMIN_GOOGLE_CALENDAR_ID` | ✅ | Google Calendar ID or calendar owner email used for event sync |
-| `NEXT_PUBLIC_ADMIN_GOOGLE_CALENDAR_ID` | Optional | Calendar ID shown in the `/setup` page only |
+| Variable                               | Required | Description                                                    |
+| -------------------------------------- | -------- | -------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | ✅       | Your Supabase project URL                                      |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`        | ✅       | Supabase anonymous/public key                                  |
+| `SUPABASE_SERVICE_ROLE_KEY`            | ✅       | Supabase service role key (server only)                        |
+| `ADMIN_GOOGLE_CLIENT_ID`               | ✅       | OAuth 2.0 Client ID for Google Calendar                        |
+| `ADMIN_GOOGLE_CLIENT_SECRET`           | ✅       | OAuth 2.0 Client Secret                                        |
+| `ADMIN_GOOGLE_REFRESH_TOKEN`           | ✅       | Refresh token for the central calendar account                 |
+| `ADMIN_GOOGLE_CALENDAR_ID`             | ✅       | Google Calendar ID or calendar owner email used for event sync |
+| `NEXT_PUBLIC_ADMIN_GOOGLE_CALENDAR_ID` | Optional | Calendar ID shown in the `/setup` page only                    |
 
 ---
 
@@ -462,10 +467,10 @@ The central calendar ID (from step 1 above, or your Google Calendar email) is st
 
 The app enforces permissions at two layers:
 
-| Layer | Mechanism | Example |
-|---|---|---|
-| **API Layer** | Route handlers use `requireAdmin()` and `requireAllowed()` checks | Only admins can call `PUT /api/venues/[id]` to edit a venue |
-| **Database Layer** | Supabase Row Level Security (RLS) policies enforce row-level access | A member can only see/edit their own unavailabilities |
+| Layer              | Mechanism                                                           | Example                                                     |
+| ------------------ | ------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **API Layer**      | Route handlers use `requireAdmin()` and `requireAllowed()` checks   | Only admins can call `PUT /api/venues/[id]` to edit a venue |
+| **Database Layer** | Supabase Row Level Security (RLS) policies enforce row-level access | A member can only see/edit their own unavailabilities       |
 
 The `allowed_users` table is the source of truth. Users not in this table cannot access anything except the unauthorized page. Admins can add or remove members and change roles directly from the **Members** card in the dashboard.
 
@@ -477,12 +482,12 @@ All endpoints are under `/app/api/` and follow Next.js Route Handler conventions
 
 ### Shifts — `/api/shifts`
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/shifts` | Member | Create a shift; triggers Google Calendar event |
-| `PUT` | `/api/shifts/[id]` | Member (creator, assignee, or admin) | Update shift; syncs calendar event |
-| `DELETE` | `/api/shifts/[id]` | Member (creator, assignee, or admin) | Delete shift; removes calendar event |
-| `GET` | `/api/shifts/[id]/assignees` | Member | Return the assignee list for one shift |
+| Method   | Path                         | Auth                                 | Description                                    |
+| -------- | ---------------------------- | ------------------------------------ | ---------------------------------------------- |
+| `POST`   | `/api/shifts`                | Member                               | Create a shift; triggers Google Calendar event |
+| `PUT`    | `/api/shifts/[id]`           | Member (creator, assignee, or admin) | Update shift; syncs calendar event             |
+| `DELETE` | `/api/shifts/[id]`           | Member (creator, assignee, or admin) | Delete shift; removes calendar event           |
+| `GET`    | `/api/shifts/[id]/assignees` | Member                               | Return the assignee list for one shift         |
 
 **POST/PUT body fields:**
 
@@ -502,54 +507,54 @@ The API checks unavailability for all assignees and returns `400` if any assigne
 
 ### Venues — `/api/venues`
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/venues` | Member | Create a venue |
-| `PUT` | `/api/venues/[id]` | Admin | Update a venue |
-| `DELETE` | `/api/venues/[id]` | Admin | Delete a venue |
+| Method   | Path               | Auth   | Description    |
+| -------- | ------------------ | ------ | -------------- |
+| `POST`   | `/api/venues`      | Member | Create a venue |
+| `PUT`    | `/api/venues/[id]` | Admin  | Update a venue |
+| `DELETE` | `/api/venues/[id]` | Admin  | Delete a venue |
 
 ### Members — `/api/members`
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `GET` | `/api/members` | Admin | List all allowed users |
-| `POST` | `/api/members` | Admin | Add a new allowed user |
-| `PATCH` | `/api/members/[id]` | Admin | Update role |
+| Method   | Path                | Auth  | Description                      |
+| -------- | ------------------- | ----- | -------------------------------- |
+| `GET`    | `/api/members`      | Admin | List all allowed users           |
+| `POST`   | `/api/members`      | Admin | Add a new allowed user           |
+| `PATCH`  | `/api/members/[id]` | Admin | Update role                      |
 | `DELETE` | `/api/members/[id]` | Admin | Remove a user from the whitelist |
 
 ### Unavailabilities — `/api/unavailabilities`
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `GET` | `/api/unavailabilities` | Member | List all unavailability periods |
-| `POST` | `/api/unavailabilities` | Member | Declare own unavailability |
-| `PUT` | `/api/unavailabilities/[id]` | Owner | Update own period |
-| `DELETE` | `/api/unavailabilities/[id]` | Owner | Remove own period |
+| Method   | Path                         | Auth   | Description                     |
+| -------- | ---------------------------- | ------ | ------------------------------- |
+| `GET`    | `/api/unavailabilities`      | Member | List all unavailability periods |
+| `POST`   | `/api/unavailabilities`      | Member | Declare own unavailability      |
+| `PUT`    | `/api/unavailabilities/[id]` | Owner  | Update own period               |
+| `DELETE` | `/api/unavailabilities/[id]` | Owner  | Remove own period               |
 
 ### Profile — `/api/profile`
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `PUT` | `/api/profile` | Self | Update `profiles.full_name` from `first_name` and `last_name` |
+| Method | Path           | Auth | Description                                                   |
+| ------ | -------------- | ---- | ------------------------------------------------------------- |
+| `PUT`  | `/api/profile` | Self | Update `profiles.full_name` from `first_name` and `last_name` |
 
 ---
 
 ## Roles & Permissions
 
-| Action | `member` | `admin` |
-|---|---|---|
-| View dashboard | ✅ | ✅ |
-| Create shifts | ✅ | ✅ |
-| Edit/delete own shifts | ✅ | ✅ |
-| Edit/delete assigned shifts | ✅ | ✅ |
-| Edit/delete any shift | ❌ | ✅ |
-| Create venues | ✅ | ✅ |
-| Edit/delete venues | ❌ | ✅ |
-| Manage unavailabilities (own) | ✅ | ✅ |
-| View all unavailabilities | ✅ | ✅ |
-| View members list | ❌ | ✅ |
-| Add/remove members | ❌ | ✅ |
-| Change member roles | ❌ | ✅ |
+| Action                        | `member` | `admin` |
+| ----------------------------- | -------- | ------- |
+| View dashboard                | ✅       | ✅      |
+| Create shifts                 | ✅       | ✅      |
+| Edit/delete own shifts        | ✅       | ✅      |
+| Edit/delete assigned shifts   | ✅       | ✅      |
+| Edit/delete any shift         | ❌       | ✅      |
+| Create venues                 | ✅       | ✅      |
+| Edit/delete venues            | ❌       | ✅      |
+| Manage unavailabilities (own) | ✅       | ✅      |
+| View all unavailabilities     | ✅       | ✅      |
+| View members list             | ❌       | ✅      |
+| Add/remove members            | ❌       | ✅      |
+| Change member roles           | ❌       | ✅      |
 
 Permissions are enforced both at the API layer (via `requireAdmin` / `requireAllowed`) and at the database layer via Supabase Row Level Security policies. Note that some reads in the dashboard are done server-side with the service-role client rather than through public `GET /api/*` endpoints.
 
@@ -560,6 +565,7 @@ Permissions are enforced both at the API layer (via `requireAdmin` / `requireAll
 ### Overview
 
 ShowHive includes a fully interactive demo mode for anyone to explore the application **without authentication or database access**. It's perfect for:
+
 - Sharing with stakeholders, recruiters, or potential users
 - Testing the UI without setting up a database
 - Understanding the app workflow before committing to deployment
@@ -575,10 +581,11 @@ http://localhost:3000/dashboard?demo=true
 Or by clicking **"Prova la demo"** on the login page.
 
 **What happens:**
+
 1. The middleware detects `?demo=true` and **skips authentication checks**
 2. The dashboard renders with **hardcoded mock data** (4 venues, 10 shifts, 4 team members, 3 unavailability periods)
 3. All UI controls remain **fully interactive** — buttons work, dialogs open, forms display
-4. **Data mutations are intercepted** — attempting to create/edit/delete anything shows a Sonner toast: *"Modalità demo — Le modifiche non vengono salvate in demo."*
+4. **Data mutations are intercepted** — attempting to create/edit/delete anything shows a Sonner toast: _"Modalità demo — Le modifiche non vengono salvate in demo."_
 5. A **sticky amber banner** at the top reminds users they're in demo mode and provides a link back to login
 
 **No data writes occur.** Demo mode never touches the database and never calls any `/api/*` route. All state changes happen in-memory only.
@@ -586,6 +593,7 @@ Or by clicking **"Prova la demo"** on the login page.
 ### Demo Data Content
 
 The mock dataset includes:
+
 - **4 venues**: Hiroshima Mon Amour, Spazio211, Magazzino sul Po, Club To Club (all in Turin)
 - **10 shifts**: Spread across upcoming dates, with realistic roles (Apertura Cassa, Sicurezza Ingresso, Stage Manager, Bar, etc.)
 - **4 team members**: Marco Ferretti, Sara Ricci, Luca Bianchi, + Demo User (as admin)
@@ -595,13 +603,13 @@ This makes the demo realistic enough to evaluate the system's capabilities.
 
 ### Implementation Details
 
-| File | Role |
-|---|---|
-| `lib/demo-data.ts` | Hardcoded mock data — venues, shifts, users, unavailabilities |
-| `lib/supabase/middleware.ts` | Skips auth redirect when `?demo=true` is detected |
-| `app/dashboard/page.tsx` | Branches on `searchParams.demo`; returns mock data instead of Supabase queries |
-| `components/dashboard/dashboard-view.tsx` | Accepts `isDemo` prop; renders the sticky demo banner |
-| `components/dashboard/shifts-list.tsx`, `venues-list.tsx`, `members-card.tsx` | Action buttons show toast if `isDemo` instead of opening dialogs |
+| File                                                                          | Role                                                                           |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `lib/demo-data.ts`                                                            | Hardcoded mock data — venues, shifts, users, unavailabilities                  |
+| `lib/supabase/middleware.ts`                                                  | Skips auth redirect when `?demo=true` is detected                              |
+| `app/dashboard/page.tsx`                                                      | Branches on `searchParams.demo`; returns mock data instead of Supabase queries |
+| `components/dashboard/dashboard-view.tsx`                                     | Accepts `isDemo` prop; renders the sticky demo banner                          |
+| `components/dashboard/shifts-list.tsx`, `venues-list.tsx`, `members-card.tsx` | Action buttons show toast if `isDemo` instead of opening dialogs               |
 
 ### Security Notes
 
@@ -680,11 +688,13 @@ When a shift is created or edited, the system checks against all unavailabilitie
 The repository includes a GitHub Actions workflow (`.github/workflows/keep-alive.yml`) that **pings your Supabase project every 3 days** to keep it active. This prevents Supabase free-tier projects from being auto-paused due to inactivity.
 
 **How it works:**
+
 - Cron schedule: `0 8 */3 * *` (every 3 days at 08:00 UTC)
 - Action: Makes a simple API call to your Supabase project
 - Secrets required: `SUPABASE_URL` and `SUPABASE_ANON_KEY`
 
 **To enable it on your fork:**
+
 1. Go to **Repository Settings → Secrets and variables → Actions**
 2. Add `SUPABASE_URL` (your Supabase project URL)
 3. Add `SUPABASE_ANON_KEY` (your Supabase anon key)
@@ -708,6 +718,7 @@ The application is designed to deploy on **Vercel** (the `@vercel/analytics` pac
 5. Deploy. Vercel will run `pnpm build` automatically.
 
 For other platforms, ensure the following:
+
 - Node.js ≥ 20.9.0 runtime.
 - All environment variables are set on the server (never exposed to the client).
 - The server can reach `supabase.co` and `googleapis.com`.
@@ -742,6 +753,7 @@ For other platforms, ensure the following:
 2. Make your changes and ensure TypeScript compiles: `pnpm build`.
 3. Lint your code: `pnpm lint` after adding an ESLint config for the repo, or use your preferred validation flow if linting is not yet configured.
 4. Open a pull request with a clear description of the changes.
+
 ---
 
 ## 🧑‍💻 Author

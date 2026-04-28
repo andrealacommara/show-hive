@@ -1,16 +1,16 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { ShiftsCalendar } from "./shifts-calendar"
-import { ShiftsList } from "./shifts-list"
-import { VenuesList } from "./venues-list"
-import { MembersCard } from "./members-card"
-import { DashboardHeader } from "./dashboard-header"
-import { ShiftsTableView } from "./shifts-table-view"
-import type { User, Profile, Venue, Shift, Unavailability, Member } from "@/types"
+import { useState } from 'react'
+import { ShiftsCalendar } from './shifts-calendar'
+import { ShiftsList } from './shifts-list'
+import { VenuesList } from './venues-list'
+import { MembersCard } from './members-card'
+import { DashboardHeader } from './dashboard-header'
+import { ShiftsTableView } from './shifts-table-view'
+import type { User, Profile, Venue, Shift, Unavailability, Member } from '@/types'
 
 function createDemoId(prefix: string) {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return `${prefix}-${crypto.randomUUID()}`
   }
 
@@ -29,7 +29,17 @@ interface DashboardViewProps {
   isDemo?: boolean
 }
 
-export function DashboardView({ user, profile, shifts, venues, users, members, isAdmin, unavailabilities, isDemo = false }: DashboardViewProps) {
+export function DashboardView({
+  user,
+  profile,
+  shifts,
+  venues,
+  users,
+  members,
+  isAdmin,
+  unavailabilities,
+  isDemo = false,
+}: DashboardViewProps) {
   const [profileState, setProfileState] = useState(profile)
   const [shiftsState, setShiftsState] = useState(shifts)
   const [venuesState, setVenuesState] = useState(venues)
@@ -37,31 +47,39 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
   const [membersState, setMembersState] = useState(members)
   const [unavailabilitiesState, setUnavailabilitiesState] = useState(unavailabilities)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [calendarMode, setCalendarMode] = useState<"grid" | "table">("grid")
+  const [calendarMode, setCalendarMode] = useState<'grid' | 'table'>('grid')
 
   const handleProfileSaved = (fullName: string) => {
     setProfileState((prev) => ({ ...prev, full_name: fullName }))
     setUsersState((prev) =>
-      prev.map((item) => (item.id === user.id ? { ...item, full_name: fullName } : item)),
+      prev.map((item) => (item.id === user.id ? { ...item, full_name: fullName } : item))
     )
   }
 
-  const handleCreateVenue = (payload: { id?: string; name: string; address?: string; city?: string }) => {
+  const handleCreateVenue = (payload: {
+    id?: string
+    name: string
+    address?: string
+    city?: string
+  }) => {
     const venue: Venue = {
-      id: payload.id || createDemoId("venue"),
+      id: payload.id || createDemoId('venue'),
       name: payload.name,
-      address: payload.address || "",
-      city: payload.city || "",
+      address: payload.address || '',
+      city: payload.city || '',
     }
 
     setVenuesState((prev) => [...prev, venue].sort((a, b) => a.name.localeCompare(b.name)))
   }
 
-  const handleUpdateVenue = (venueId: string, payload: { name: string; address?: string; city?: string }) => {
+  const handleUpdateVenue = (
+    venueId: string,
+    payload: { name: string; address?: string; city?: string }
+  ) => {
     setVenuesState((prev) =>
       prev
         .map((venue) => (venue.id === venueId ? { ...venue, ...payload } : venue))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .sort((a, b) => a.name.localeCompare(b.name))
     )
     setShiftsState((prev) =>
       prev.map((shift) =>
@@ -75,8 +93,8 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
                 city: payload.city,
               },
             }
-          : shift,
-      ),
+          : shift
+      )
     )
   }
 
@@ -97,9 +115,9 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
   }) => {
     const venue = venuesState.find((item) => item.id === payload.venue_id)
     const shift: Shift = {
-      id: payload.id || createDemoId("shift"),
+      id: payload.id || createDemoId('shift'),
       title: payload.title,
-      description: payload.description || "",
+      description: payload.description || '',
       venue_id: payload.venue_id,
       venue,
       shift_date: payload.shift_date,
@@ -111,13 +129,15 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
           return assignedUser ? { user_id: assigneeId, user: assignedUser } : null
         })
         .filter((item): item is NonNullable<typeof item> => item !== null),
-      google_calendar_event_id: createDemoId("demo-cal"),
+      google_calendar_event_id: createDemoId('demo-cal'),
     }
 
     setShiftsState((prev) =>
       [...prev, shift].sort((a, b) =>
-        a.shift_date === b.shift_date ? a.start_time.localeCompare(b.start_time) : a.shift_date.localeCompare(b.shift_date),
-      ),
+        a.shift_date === b.shift_date
+          ? a.start_time.localeCompare(b.start_time)
+          : a.shift_date.localeCompare(b.shift_date)
+      )
     )
   }
 
@@ -131,7 +151,7 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
       start_time: string
       end_time: string
       assignees: string[]
-    },
+    }
   ) => {
     const venue = venuesState.find((item) => item.id === payload.venue_id)
     setShiftsState((prev) =>
@@ -141,7 +161,7 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
             ? {
                 ...shift,
                 title: payload.title,
-                description: payload.description || "",
+                description: payload.description || '',
                 venue_id: payload.venue_id,
                 venue,
                 shift_date: payload.shift_date,
@@ -154,11 +174,13 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
                   })
                   .filter((item): item is NonNullable<typeof item> => item !== null),
               }
-            : shift,
+            : shift
         )
         .sort((a, b) =>
-          a.shift_date === b.shift_date ? a.start_time.localeCompare(b.start_time) : a.shift_date.localeCompare(b.shift_date),
-        ),
+          a.shift_date === b.shift_date
+            ? a.start_time.localeCompare(b.start_time)
+            : a.shift_date.localeCompare(b.shift_date)
+        )
     )
   }
 
@@ -166,7 +188,12 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
     setShiftsState((prev) => prev.filter((shift) => shift.id !== shiftId))
   }
 
-  const handleSaveUnavailability = (payload: { id?: string; start_date: string; end_date: string; reason?: string }) => {
+  const handleSaveUnavailability = (payload: {
+    id?: string
+    start_date: string
+    end_date: string
+    reason?: string
+  }) => {
     const existing = payload.id
     const currentUser = usersState.find((item) => item.id === user.id) || {
       id: user.id,
@@ -179,24 +206,31 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
         prev
           .map((item) =>
             item.id === existing
-              ? { ...item, start_date: payload.start_date, end_date: payload.end_date, reason: payload.reason || "" }
-              : item,
+              ? {
+                  ...item,
+                  start_date: payload.start_date,
+                  end_date: payload.end_date,
+                  reason: payload.reason || '',
+                }
+              : item
           )
-          .sort((a, b) => a.start_date.localeCompare(b.start_date)),
+          .sort((a, b) => a.start_date.localeCompare(b.start_date))
       )
       return
     }
 
     const nextItem: Unavailability = {
-      id: createDemoId("unav"),
+      id: createDemoId('unav'),
       user_id: user.id,
       start_date: payload.start_date,
       end_date: payload.end_date,
-      reason: payload.reason || "",
+      reason: payload.reason || '',
       user: currentUser,
     }
 
-    setUnavailabilitiesState((prev) => [...prev, nextItem].sort((a, b) => a.start_date.localeCompare(b.start_date)))
+    setUnavailabilitiesState((prev) =>
+      [...prev, nextItem].sort((a, b) => a.start_date.localeCompare(b.start_date))
+    )
   }
 
   const handleDeleteUnavailability = (id: string) => {
@@ -223,7 +257,12 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
           </a>
         </div>
       )}
-      <DashboardHeader user={user} profile={profileState} isDemo={isDemo} onProfileSaved={handleProfileSaved} />
+      <DashboardHeader
+        user={user}
+        profile={profileState}
+        isDemo={isDemo}
+        onProfileSaved={handleProfileSaved}
+      />
 
       <main className="w-full px-4 py-6 sm:px-6">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -233,20 +272,20 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => setCalendarMode("grid")}
-                    className={`text-sm px-3 py-1 rounded-md border ${calendarMode === "grid" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}
+                    onClick={() => setCalendarMode('grid')}
+                    className={`text-sm px-3 py-1 rounded-md border ${calendarMode === 'grid' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground'}`}
                   >
                     Calendario
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCalendarMode("table")}
-                    className={`text-sm px-3 py-1 rounded-md border ${calendarMode === "table" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}
+                    onClick={() => setCalendarMode('table')}
+                    className={`text-sm px-3 py-1 rounded-md border ${calendarMode === 'table' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground'}`}
                   >
                     Tabella
                   </button>
                 </div>
-                {calendarMode === "grid" ? (
+                {calendarMode === 'grid' ? (
                   <ShiftsCalendar
                     shifts={shiftsState}
                     users={usersState}
@@ -255,7 +294,11 @@ export function DashboardView({ user, profile, shifts, venues, users, members, i
                     onSelectDay={setSelectedDate}
                   />
                 ) : (
-                  <ShiftsTableView shifts={shiftsState} unavailabilities={unavailabilitiesState} users={usersState} />
+                  <ShiftsTableView
+                    shifts={shiftsState}
+                    unavailabilities={unavailabilitiesState}
+                    users={usersState}
+                  />
                 )}
               </div>
               <div className="w-full max-w-2xl mx-auto">

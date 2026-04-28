@@ -11,7 +11,7 @@ export interface Profile {
   full_name?: string
   email?: string
   avatar_url?: string | null
-  role?: "admin" | "member"
+  role?: 'admin' | 'member'
   created_at?: string
   updated_at?: string
 }
@@ -63,7 +63,7 @@ export interface Unavailability {
 export interface Member {
   id: string
   email: string
-  role: "admin" | "member"
+  role: 'admin' | 'member'
   created_at?: string
 }
 

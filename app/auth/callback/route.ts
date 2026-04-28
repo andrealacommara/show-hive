@@ -1,11 +1,11 @@
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { getProviderAvatar, getProviderFullName } from "@/lib/profile-metadata"
-import { NextResponse } from "next/server"
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getProviderAvatar, getProviderFullName } from '@/lib/profile-metadata'
+import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get("code")
+  const code = requestUrl.searchParams.get('code')
 
   if (code) {
     const supabase = await createClient()
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
-      return NextResponse.redirect(new URL("/auth/login?error=oauth_failed", requestUrl.origin))
+      return NextResponse.redirect(new URL('/auth/login?error=oauth_failed', requestUrl.origin))
     }
 
     const session = data.session
@@ -21,9 +21,9 @@ export async function GET(request: Request) {
     if (session?.user) {
       const user = session.user
       const { data: existingProfile } = await admin
-        .from("profiles")
-        .select("full_name, avatar_url")
-        .eq("id", user.id)
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', user.id)
         .maybeSingle()
 
       const providerName = getProviderFullName(user)
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       const full_name = existingProfile?.full_name || providerName
       const avatar_url = providerAvatar || existingProfile?.avatar_url
 
-      await supabase.from("profiles").upsert({
+      await supabase.from('profiles').upsert({
         id: user.id,
         email: user.email,
         full_name,
@@ -40,19 +40,19 @@ export async function GET(request: Request) {
 
       // Bootstrap first admin if none exists
       const { count: adminCount } = await admin
-        .from("allowed_users")
-        .select("id", { count: "exact", head: true })
-        .eq("role", "admin")
+        .from('allowed_users')
+        .select('id', { count: 'exact', head: true })
+        .eq('role', 'admin')
 
       if (!adminCount || adminCount === 0) {
-        await admin.from("allowed_users").upsert({
+        await admin.from('allowed_users').upsert({
           email: user.email,
-          role: "admin",
+          role: 'admin',
           created_by: user.id,
         })
       }
     }
   }
 
-  return NextResponse.redirect(new URL("/dashboard", requestUrl.origin))
+  return NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
 }

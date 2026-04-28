@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { MapPin, Building2, Pencil, Trash2 } from "lucide-react"
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MapPin, Building2, Pencil, Trash2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,9 +13,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { CreateVenueDialog } from "./create-venue-dialog"
-import { EditVenueDialog } from "./edit-venue-dialog"
+} from '@/components/ui/alert-dialog'
+import { CreateVenueDialog } from './create-venue-dialog'
+import { EditVenueDialog } from './edit-venue-dialog'
 
 interface Venue {
   id: string
@@ -30,7 +30,10 @@ interface VenuesListProps {
   isAdmin?: boolean
   isDemo?: boolean
   onCreateVenue?: (payload: { name: string; address?: string; city?: string }) => void
-  onUpdateVenue?: (venueId: string, payload: { name: string; address?: string; city?: string }) => void
+  onUpdateVenue?: (
+    venueId: string,
+    payload: { name: string; address?: string; city?: string }
+  ) => void
   onDeleteVenue?: (venueId: string) => void
 }
 
@@ -59,13 +62,13 @@ export function VenuesList({
     if (!isAdmin) return
     setBusyId(venue.id)
     try {
-      const res = await fetch(`/api/venues/${venue.id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Delete failed")
+      const res = await fetch(`/api/venues/${venue.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Delete failed')
       onDeleteVenue?.(venue.id)
       router.refresh()
     } catch (error) {
-      console.error("Delete venue failed", error)
-      alert("Impossibile eliminare il locale")
+      console.error('Delete venue failed', error)
+      alert('Impossibile eliminare il locale')
     } finally {
       setBusyId(null)
     }
@@ -80,7 +83,11 @@ export function VenuesList({
               <Building2 className="h-5 w-5" />
               Locali
             </CardTitle>
-            <CreateVenueDialog currentUserId={currentUserId} isDemo={isDemo} onCreateVenue={onCreateVenue} />
+            <CreateVenueDialog
+              currentUserId={currentUserId}
+              isDemo={isDemo}
+              onCreateVenue={onCreateVenue}
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -92,7 +99,10 @@ export function VenuesList({
           ) : (
             <div className="space-y-3">
               {venues.map((venue) => (
-                <div key={venue.id} className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                <div
+                  key={venue.id}
+                  className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <h4 className="font-medium mb-1">{venue.name}</h4>
                     {(isAdmin || isDemo) && (
@@ -129,7 +139,7 @@ export function VenuesList({
                       <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
                       <span className="text-pretty">
                         {venue.address}
-                        {venue.address && venue.city && ", "}
+                        {venue.address && venue.city && ', '}
                         {venue.city}
                       </span>
                     </div>
@@ -144,15 +154,17 @@ export function VenuesList({
       {/* Conferma eliminazione locale */}
       <AlertDialog
         open={confirmDeleteVenue !== null}
-        onOpenChange={(v) => { if (!v) setConfirmDeleteVenue(null) }}
+        onOpenChange={(v) => {
+          if (!v) setConfirmDeleteVenue(null)
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminare il locale?</AlertDialogTitle>
             <AlertDialogDescription>
               Stai per eliminare <span className="font-semibold">"{confirmDeleteVenue?.name}"</span>
-              {confirmDeleteVenue?.city ? ` (${confirmDeleteVenue.city})` : ""}.
-              {" "}Questa azione non può essere annullata e rimuoverà il locale da tutti i turni associati.
+              {confirmDeleteVenue?.city ? ` (${confirmDeleteVenue.city})` : ''}. Questa azione non
+              può essere annullata e rimuoverà il locale da tutti i turni associati.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

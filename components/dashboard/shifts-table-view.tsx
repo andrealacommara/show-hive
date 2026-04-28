@@ -1,18 +1,40 @@
-"use client"
+'use client'
 
-import { useMemo, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth } from "date-fns"
-import { it } from "date-fns/locale"
-import { Badge } from "@/components/ui/badge"
-import { Clock, MapPin, Users, AlertCircle, Table as TableIcon } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useMemo, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  format,
+  parseISO,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameMonth,
+} from 'date-fns'
+import { it } from 'date-fns/locale'
+import { Badge } from '@/components/ui/badge'
+import { Clock, MapPin, Users, AlertCircle, Table as TableIcon } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 function parseLocalDate(dateStr: string): Date {
-  const [year, month, day] = dateStr.split("-").map(Number)
+  const [year, month, day] = dateStr.split('-').map(Number)
   return new Date(year, (month ?? 1) - 1, day ?? 1)
 }
 
@@ -41,23 +63,27 @@ interface ShiftsTableViewProps {
   users?: { id: string; full_name?: string; email?: string }[]
 }
 
-export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: ShiftsTableViewProps) {
+export function ShiftsTableView({
+  shifts,
+  unavailabilities = [],
+  users = [],
+}: ShiftsTableViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const currentYear = currentMonth.getFullYear()
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all")
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
 
   const monthOptions = useMemo(
     () =>
       Array.from({ length: 12 }, (_, i) => ({
         value: String(i),
-        short: format(new Date(2024, i, 1), "MMM", { locale: it }),
-        long: format(new Date(2024, i, 1), "MMMM", { locale: it }),
+        short: format(new Date(2024, i, 1), 'MMM', { locale: it }),
+        long: format(new Date(2024, i, 1), 'MMMM', { locale: it }),
       })),
-    [],
+    []
   )
   const years = useMemo(
     () => Array.from({ length: 7 }, (_, i) => currentYear - 3 + i),
-    [currentYear],
+    [currentYear]
   )
 
   const rows = useMemo(() => {
@@ -73,20 +99,22 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
         shifts
           .filter((shift) => {
             const shiftDate = parseLocalDate(shift.shift_date)
-            const dayKey = format(day, "yyyy-MM-dd")
+            const dayKey = format(day, 'yyyy-MM-dd')
             return isSameMonth(shiftDate, currentMonth) && shift.shift_date === dayKey
           })
-          .sort((a, b) => a.start_time.localeCompare(b.start_time)),
+          .sort((a, b) => a.start_time.localeCompare(b.start_time))
       )
       .filter((shift) => {
         const assignees = shift.shift_assignees || []
-        if (assigneeFilter === "all") return true
-        if (assigneeFilter === "unassigned") return assignees.length === 0
+        if (assigneeFilter === 'all') return true
+        if (assigneeFilter === 'unassigned') return assignees.length === 0
         return assignees.some((a) => a.user?.id === assigneeFilter)
       })
       .map((shift) => {
         const assignees =
-          shift.shift_assignees?.map(({ user }) => user?.full_name || user?.email || "Utente").filter(Boolean) || []
+          shift.shift_assignees
+            ?.map(({ user }) => user?.full_name || user?.email || 'Utente')
+            .filter(Boolean) || []
 
         const unavailable = (shift.shift_assignees || []).filter(({ user }) => {
           if (!user?.id) return false
@@ -95,7 +123,7 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
             (u) =>
               u.user?.id === user.id &&
               date >= parseLocalDate(u.start_date) &&
-              date <= parseLocalDate(u.end_date),
+              date <= parseLocalDate(u.end_date)
           )
         })
 
@@ -111,8 +139,8 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
         const start = parseISO(u.start_date)
         const end = parseISO(u.end_date)
         const matchesUser =
-          assigneeFilter === "all" ||
-          (assigneeFilter !== "unassigned" && u.user?.id === assigneeFilter)
+          assigneeFilter === 'all' ||
+          (assigneeFilter !== 'unassigned' && u.user?.id === assigneeFilter)
         return matchesUser && end >= monthStart && start <= monthEnd
       })
       .sort((a, b) => a.start_date.localeCompare(b.start_date))
@@ -132,18 +160,24 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                 variant="outline"
                 size="icon"
                 className="h-8 w-8 shrink-0"
-                onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                onClick={() =>
+                  setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+                }
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Select
                 value={String(currentMonth.getMonth())}
-                onValueChange={(value) => setCurrentMonth((prev) => new Date(prev.getFullYear(), Number(value), 1))}
+                onValueChange={(value) =>
+                  setCurrentMonth((prev) => new Date(prev.getFullYear(), Number(value), 1))
+                }
               >
                 <SelectTrigger className="h-8 text-xs sm:text-sm whitespace-nowrap w-full">
-                  <SelectValue placeholder={format(currentMonth, "MMM", { locale: it })}>
-                    <span className="sm:hidden">{format(currentMonth, "MMM", { locale: it })}</span>
-                    <span className="hidden sm:inline">{format(currentMonth, "MMMM", { locale: it })}</span>
+                  <SelectValue placeholder={format(currentMonth, 'MMM', { locale: it })}>
+                    <span className="sm:hidden">{format(currentMonth, 'MMM', { locale: it })}</span>
+                    <span className="hidden sm:inline">
+                      {format(currentMonth, 'MMMM', { locale: it })}
+                    </span>
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -157,7 +191,9 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
               </Select>
               <Select
                 value={String(currentYear)}
-                onValueChange={(value) => setCurrentMonth((prev) => new Date(Number(value), prev.getMonth(), 1))}
+                onValueChange={(value) =>
+                  setCurrentMonth((prev) => new Date(Number(value), prev.getMonth(), 1))
+                }
               >
                 <SelectTrigger className="h-8 text-xs sm:text-sm whitespace-nowrap w-full max-w-35">
                   <SelectValue placeholder={currentYear}>{currentYear}</SelectValue>
@@ -174,7 +210,9 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                 variant="outline"
                 size="icon"
                 className="h-8 w-8 shrink-0"
-                onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                onClick={() =>
+                  setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+                }
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -230,13 +268,15 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                   <TableRow key={shift.id} className="align-top">
                     <TableCell className="text-sm whitespace-nowrap">
                       <div className="font-semibold">
-                        {format(parseLocalDate(shift.shift_date), "EEE d MMM", { locale: it })}
+                        {format(parseLocalDate(shift.shift_date), 'EEE d MMM', { locale: it })}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
                       <div className="font-semibold">{shift.title}</div>
                       {shift.description && (
-                        <div className="text-muted-foreground text-xs line-clamp-2">{shift.description}</div>
+                        <div className="text-muted-foreground text-xs line-clamp-2">
+                          {shift.description}
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
@@ -252,7 +292,7 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                           <span className="truncate max-w-40">{shift.venue.name}</span>
                         </div>
                       ) : (
-                        "-"
+                        '-'
                       )}
                     </TableCell>
                     <TableCell className="text-xs">
@@ -264,14 +304,21 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                             </Badge>
                           ) : (
                             assignees.map((name, idx) => (
-                              <Badge key={`${shift.id}-${idx}`} variant="secondary" className="text-xs">
+                              <Badge
+                                key={`${shift.id}-${idx}`}
+                                variant="secondary"
+                                className="text-xs"
+                              >
                                 <Users className="h-3 w-3 mr-1" />
                                 {name}
                               </Badge>
                             ))
                           )}
                           {unavailable.length > 0 && (
-                            <Badge variant="destructive" className="flex items-center gap-1 text-[11px]">
+                            <Badge
+                              variant="destructive"
+                              className="flex items-center gap-1 text-[11px]"
+                            >
                               <AlertCircle className="h-3 w-3" />
                               ND
                             </Badge>
@@ -280,8 +327,12 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
                         {unavailable.length > 0 && (
                           <div className="flex flex-wrap gap-1 items-center">
                             {unavailable.map((u, idx) => (
-                              <Badge key={`${shift.id}-unav-${idx}`} variant="outline" className="text-[11px] border-amber-300 text-amber-800">
-                                {u.user?.full_name || u.user?.email || "Utente indisponibile"}
+                              <Badge
+                                key={`${shift.id}-unav-${idx}`}
+                                variant="outline"
+                                className="text-[11px] border-amber-300 text-amber-800"
+                              >
+                                {u.user?.full_name || u.user?.email || 'Utente indisponibile'}
                               </Badge>
                             ))}
                           </div>
@@ -319,15 +370,17 @@ export function ShiftsTableView({ shifts, unavailabilities = [], users = [] }: S
               ) : (
                 unavailabilityRows.map((item) => (
                   <TableRow key={item.id} className="align-top">
-                    <TableCell className="text-sm">{item.user?.full_name || item.user?.email || "Utente"}</TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {format(parseLocalDate(item.start_date), "d MMM", { locale: it })}
+                    <TableCell className="text-sm">
+                      {item.user?.full_name || item.user?.email || 'Utente'}
                     </TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
-                      {format(parseLocalDate(item.end_date), "d MMM", { locale: it })}
+                      {format(parseLocalDate(item.start_date), 'd MMM', { locale: it })}
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {format(parseLocalDate(item.end_date), 'd MMM', { locale: it })}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-50">
-                      {item.reason || "—"}
+                      {item.reason || '—'}
                     </TableCell>
                   </TableRow>
                 ))

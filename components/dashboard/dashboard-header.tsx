@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,12 +9,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
-import { Calendar, LogOut } from "lucide-react"
-import { EditProfileDialog } from "./edit-profile-dialog"
-import type { User, Profile } from "@/types"
+} from '@/components/ui/dropdown-menu'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import { Calendar, LogOut } from 'lucide-react'
+import { EditProfileDialog } from './edit-profile-dialog'
+import type { User, Profile } from '@/types'
 
 interface DashboardHeaderProps {
   user: User
@@ -23,24 +23,29 @@ interface DashboardHeaderProps {
   onProfileSaved?: (fullName: string) => void
 }
 
-export function DashboardHeader({ user, profile, isDemo = false, onProfileSaved }: DashboardHeaderProps) {
+export function DashboardHeader({
+  user,
+  profile,
+  isDemo = false,
+  onProfileSaved,
+}: DashboardHeaderProps) {
   const router = useRouter()
   const supabase = createClient()
 
   const handleSignOut = async () => {
     if (isDemo) {
-      router.push("/auth/login")
+      router.push('/auth/login')
       return
     }
     await supabase.auth.signOut()
-    router.push("/auth/login")
+    router.push('/auth/login')
   }
 
   const initials =
     profile?.full_name
-      ?.split(" ")
+      ?.split(' ')
       .map((n: string) => n[0])
-      .join("")
+      .join('')
       .toUpperCase() || user.email?.[0].toUpperCase()
 
   return (
@@ -61,7 +66,10 @@ export function DashboardHeader({ user, profile, isDemo = false, onProfileSaved 
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar>
-                  <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={profile?.full_name} />
+                  <AvatarImage
+                    src={profile?.avatar_url || '/placeholder.svg'}
+                    alt={profile?.full_name}
+                  />
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
               </Button>
@@ -69,12 +77,20 @@ export function DashboardHeader({ user, profile, isDemo = false, onProfileSaved 
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{profile?.full_name || "Utente"}</p>
-                  <p className="text-xs leading-none text-muted-foreground break-all">{user.email}</p>
+                  <p className="text-sm font-medium leading-none">
+                    {profile?.full_name || 'Utente'}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground break-all">
+                    {user.email}
+                  </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <EditProfileDialog fullName={profile?.full_name} isDemo={isDemo} onSaved={onProfileSaved}>
+              <EditProfileDialog
+                fullName={profile?.full_name}
+                isDemo={isDemo}
+                onSaved={onProfileSaved}
+              >
                 <DropdownMenuItem
                   onSelect={(e) => {
                     e.preventDefault()

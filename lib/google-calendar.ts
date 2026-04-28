@@ -1,4 +1,4 @@
-import { getCalendarClient } from "@/lib/google"
+import { getCalendarClient } from '@/lib/google'
 
 interface CalendarEvent {
   summary: string
@@ -37,7 +37,7 @@ export function getCentralCalendarId() {
   const calendarId = process.env.ADMIN_GOOGLE_CALENDAR_ID
 
   if (!calendarId) {
-    throw new Error("Missing Google Calendar env: ADMIN_GOOGLE_CALENDAR_ID")
+    throw new Error('Missing Google Calendar env: ADMIN_GOOGLE_CALENDAR_ID')
   }
 
   return calendarId
@@ -50,7 +50,7 @@ export async function createGoogleCalendarEvent(event: CalendarEvent) {
   const { data } = await calendar.events.insert({
     calendarId,
     requestBody: event,
-    sendUpdates: "all",
+    sendUpdates: 'all',
   })
 
   return data
@@ -70,7 +70,7 @@ export async function deleteGoogleCalendarEvent(eventId: string) {
       return true
     }
 
-    throw new Error("Failed to delete calendar event")
+    throw new Error('Failed to delete calendar event')
   }
 
   return true
@@ -83,7 +83,7 @@ export async function updateGoogleCalendarEvent(eventId: string, event: Partial<
     calendarId,
     eventId,
     requestBody: event,
-    sendUpdates: "all",
+    sendUpdates: 'all',
   })
   return data
 }

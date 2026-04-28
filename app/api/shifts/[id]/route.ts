@@ -1,13 +1,13 @@
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { NextResponse } from "next/server"
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { NextResponse } from 'next/server'
 import {
   deleteGoogleCalendarEvent,
   updateGoogleCalendarEvent,
   createGoogleCalendarEvent,
   isMissingGoogleCalendarEventError,
-} from "@/lib/google-calendar"
-import { requireAllowed } from "@/lib/authz"
+} from '@/lib/google-calendar'
+import { requireAllowed } from '@/lib/authz'
 
 function addOneDay(date: string) {
   const d = new Date(date)
@@ -22,16 +22,16 @@ function toGoogleDateTime(date: string, time: string) {
 async function getUnavailableAssignees(
   supabase: Awaited<ReturnType<typeof createClient>>,
   assignees: string[],
-  date: string,
+  date: string
 ) {
   if (!assignees.length) return []
 
   const { data, error } = await supabase
-    .from("unavailabilities")
-    .select("user_id, user:profiles(full_name, email)")
-    .in("user_id", assignees)
-    .lte("start_date", date)
-    .gte("end_date", date)
+    .from('unavailabilities')
+    .select('user_id, user:profiles(full_name, email)')
+    .in('user_id', assignees)
+    .lte('start_date', date)
+    .gte('end_date', date)
 
   if (error) throw error
   return data || []
@@ -49,38 +49,43 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     await requireAllowed(user.email)
 
     // Determine role
-    const { data: access } = await admin.from("allowed_users").select("role").eq("email", user.email).maybeSingle()
+    const { data: access } = await admin
+      .from('allowed_users')
+      .select('role')
+      .eq('email', user.email)
+      .maybeSingle()
 
     // Get shift to check permissions and keep data for potential rollback (admin client bypasses RLS)
     const { data: shift } = await admin
-      .from("shifts")
-      .select("*, shift_assignees:shift_assignees(user_id)")
-      .eq("id", id)
+      .from('shifts')
+      .select('*, shift_assignees:shift_assignees(user_id)')
+      .eq('id', id)
       .single()
 
     if (!shift) {
-      return NextResponse.json({ error: "Shift not found" }, { status: 404 })
+      return NextResponse.json({ error: 'Shift not found' }, { status: 404 })
     }
 
-    const isAdmin = access?.role === "admin"
+    const isAdmin = access?.role === 'admin'
     const isAssignee =
       shift.assigned_to === user.id ||
-      (Array.isArray(shift.shift_assignees) && shift.shift_assignees.some((sa: { user_id: string }) => sa?.user_id === user.id))
+      (Array.isArray(shift.shift_assignees) &&
+        shift.shift_assignees.some((sa: { user_id: string }) => sa?.user_id === user.id))
 
     if (!isAdmin) {
       if (shift.created_by !== user.id && !isAssignee) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
 
     // Delete shift from database first (admin to allow assignees)
-    const { error: deleteError } = await admin.from("shifts").delete().eq("id", id)
+    const { error: deleteError } = await admin.from('shifts').delete().eq('id', id)
 
     if (deleteError) throw deleteError
 
@@ -89,27 +94,31 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       try {
         await deleteGoogleCalendarEvent(shift.google_calendar_event_id)
       } catch (calendarError) {
-        const errorMsg = calendarError instanceof Error ? calendarError.message : "Unknown error"
-        console.error("[app] Calendar event deletion failed, rolling back DB delete:", errorMsg)
+        const errorMsg = calendarError instanceof Error ? calendarError.message : 'Unknown error'
+        console.error('[app] Calendar event deletion failed, rolling back DB delete:', errorMsg)
         try {
           const { shift_assignees, ...shiftRow } = shift
-          await admin.from("shifts").insert(shiftRow)
+          await admin.from('shifts').insert(shiftRow)
           if (Array.isArray(shift_assignees) && shift_assignees.length > 0) {
-            const assigneeRows = shift_assignees.map((sa) => ({ shift_id: id, user_id: sa.user_id }))
-            await admin.from("shift_assignees").insert(assigneeRows)
+            const assigneeRows = shift_assignees.map((sa) => ({
+              shift_id: id,
+              user_id: sa.user_id,
+            }))
+            await admin.from('shift_assignees').insert(assigneeRows)
           }
         } catch (rollbackError) {
-          const rollbackMsg = rollbackError instanceof Error ? rollbackError.message : "Unknown error"
-          console.error("[app] Rollback failed after calendar delete error:", rollbackMsg)
+          const rollbackMsg =
+            rollbackError instanceof Error ? rollbackError.message : 'Unknown error'
+          console.error('[app] Rollback failed after calendar delete error:', rollbackMsg)
         }
-        return NextResponse.json({ error: "Failed to delete calendar event" }, { status: 502 })
+        return NextResponse.json({ error: 'Failed to delete calendar event' }, { status: 502 })
       }
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[app] Error deleting shift:", error)
-    return NextResponse.json({ error: "Failed to delete shift" }, { status: 500 })
+    console.error('[app] Error deleting shift:', error)
+    return NextResponse.json({ error: 'Failed to delete shift' }, { status: 500 })
   }
 }
 
@@ -126,42 +135,43 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     await requireAllowed(user.email)
 
     // Check access: admin or assignee
     const { data: access } = await admin
-      .from("allowed_users")
-      .select("role")
-      .eq("email", user.email)
+      .from('allowed_users')
+      .select('role')
+      .eq('email', user.email)
       .maybeSingle()
 
     const { data: existingShift } = await admin
-      .from("shifts")
+      .from('shifts')
       .select(
         `
         *,
         shift_assignees:shift_assignees(user:profiles(id, email, full_name)),
         venue:venues(name, address, city)
-      `,
+      `
       )
-      .eq("id", id)
+      .eq('id', id)
       .single()
 
     if (!existingShift) {
-      return NextResponse.json({ error: "Shift not found" }, { status: 404 })
+      return NextResponse.json({ error: 'Shift not found' }, { status: 404 })
     }
 
-    const isAdmin = access?.role === "admin"
+    const isAdmin = access?.role === 'admin'
     const isAssignee =
-      existingShift.shift_assignees?.some((a: { user?: { id: string } }) => a.user?.id === user.id) ||
-      existingShift.assigned_to === user.id
+      existingShift.shift_assignees?.some(
+        (a: { user?: { id: string } }) => a.user?.id === user.id
+      ) || existingShift.assigned_to === user.id
 
     if (!isAdmin) {
       if (existingShift.created_by !== user.id && !isAssignee) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
 
@@ -172,19 +182,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (unavailable.length > 0) {
       const names = unavailable
         .map((u) => {
-          const profile = (Array.isArray(u.user) ? u.user[0] : u.user) as { full_name?: string; email?: string } | undefined
-          return profile?.full_name || profile?.email || "Utente"
+          const profile = (Array.isArray(u.user) ? u.user[0] : u.user) as
+            | { full_name?: string; email?: string }
+            | undefined
+          return profile?.full_name || profile?.email || 'Utente'
         })
         .filter(Boolean)
-        .join(", ")
-      return NextResponse.json(
-        { error: `Indisponibile in questa data: ${names}` },
-        { status: 400 },
-      )
+        .join(', ')
+      return NextResponse.json({ error: `Indisponibile in questa data: ${names}` }, { status: 400 })
     }
 
     const { error: updateError } = await admin
-      .from("shifts")
+      .from('shifts')
       .update({
         title: body.title,
         description: body.description,
@@ -194,33 +203,36 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         end_time: body.end_time,
         assigned_to: assignedTo,
       })
-      .eq("id", id)
+      .eq('id', id)
 
     if (updateError) throw updateError
 
     // Replace assignees
-    await admin.from("shift_assignees").delete().eq("shift_id", id)
+    await admin.from('shift_assignees').delete().eq('shift_id', id)
     if (assignees.length > 0) {
       const rows = assignees.map((assigneeId) => ({ shift_id: id, user_id: assigneeId }))
-      await admin.from("shift_assignees").upsert(rows)
+      await admin.from('shift_assignees').upsert(rows)
     }
 
     // Reload with relations for calendar payload
     const { data: fullShift } = await admin
-      .from("shifts")
+      .from('shifts')
       .select(
         `
         *,
         venue:venues(*),
         shift_assignees:shift_assignees(user:profiles(id, full_name, email))
-      `,
+      `
       )
-      .eq("id", id)
+      .eq('id', id)
       .single()
 
-    if (fullShift && (access?.role === "admin" || isAssignee)) {
+    if (fullShift && (access?.role === 'admin' || isAssignee)) {
       const startDateTime = toGoogleDateTime(fullShift.shift_date, fullShift.start_time)
-      const endDateDate = fullShift.end_time <= fullShift.start_time ? addOneDay(fullShift.shift_date) : fullShift.shift_date
+      const endDateDate =
+        fullShift.end_time <= fullShift.start_time
+          ? addOneDay(fullShift.shift_date)
+          : fullShift.shift_date
       const endDateTime = toGoogleDateTime(endDateDate, fullShift.end_time)
 
       const venueInfo = fullShift.venue
@@ -230,12 +242,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       } else if (venueInfo?.address) {
         locationParts.push(venueInfo.address)
       }
-      const location = locationParts.join(", ")
+      const location = locationParts.join(', ')
       const venueName = venueInfo?.name?.trim()
 
       const attendees =
-        fullShift.shift_assignees?.map((a: { user?: { email?: string } }) => (a.user?.email ? { email: a.user.email } : null)).filter(Boolean) ||
-        []
+        fullShift.shift_assignees
+          ?.map((a: { user?: { email?: string } }) =>
+            a.user?.email ? { email: a.user.email } : null
+          )
+          .filter(Boolean) || []
 
       try {
         if (fullShift.google_calendar_event_id) {
@@ -243,14 +258,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             // FIX: when all assignees are removed, delete the calendar event instead of
             // leaving it orphaned on Google Calendar with an empty attendees list.
             await deleteGoogleCalendarEvent(fullShift.google_calendar_event_id)
-            await admin.from("shifts").update({ google_calendar_event_id: null }).eq("id", id)
+            await admin.from('shifts').update({ google_calendar_event_id: null }).eq('id', id)
           } else {
             const eventPayload = {
               summary: venueName ? `${fullShift.title} - ${venueName}` : fullShift.title,
-              description: fullShift.description || "",
+              description: fullShift.description || '',
               location,
-              start: { dateTime: startDateTime, timeZone: "Europe/Rome" },
-              end: { dateTime: endDateTime, timeZone: "Europe/Rome" },
+              start: { dateTime: startDateTime, timeZone: 'Europe/Rome' },
+              end: { dateTime: endDateTime, timeZone: 'Europe/Rome' },
               attendees,
             }
 
@@ -263,33 +278,36 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
               const recreatedEvent = await createGoogleCalendarEvent(eventPayload)
               await admin
-                .from("shifts")
+                .from('shifts')
                 .update({ google_calendar_event_id: recreatedEvent?.id || null })
-                .eq("id", id)
+                .eq('id', id)
             }
           }
         } else if (assignees.length > 0) {
           const calendarEvent = await createGoogleCalendarEvent({
             summary: venueName ? `${fullShift.title} - ${venueName}` : fullShift.title,
-            description: fullShift.description || "",
+            description: fullShift.description || '',
             location,
-            start: { dateTime: startDateTime, timeZone: "Europe/Rome" },
-            end: { dateTime: endDateTime, timeZone: "Europe/Rome" },
+            start: { dateTime: startDateTime, timeZone: 'Europe/Rome' },
+            end: { dateTime: endDateTime, timeZone: 'Europe/Rome' },
             attendees,
           })
           if (calendarEvent?.id) {
-            await admin.from("shifts").update({ google_calendar_event_id: calendarEvent.id }).eq("id", id)
+            await admin
+              .from('shifts')
+              .update({ google_calendar_event_id: calendarEvent.id })
+              .eq('id', id)
           }
         }
       } catch (calendarError) {
-        const errorMsg = calendarError instanceof Error ? calendarError.message : "Unknown error"
-        console.error("[app] Calendar event update failed:", errorMsg)
+        const errorMsg = calendarError instanceof Error ? calendarError.message : 'Unknown error'
+        console.error('[app] Calendar event update failed:', errorMsg)
       }
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[app] Error updating shift:", error)
-    return NextResponse.json({ error: "Failed to update shift" }, { status: 500 })
+    console.error('[app] Error updating shift:', error)
+    return NextResponse.json({ error: 'Failed to update shift' }, { status: 500 })
   }
 }

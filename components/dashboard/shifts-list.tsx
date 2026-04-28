@@ -1,59 +1,67 @@
-"use client";
+'use client'
 
-import { useMemo, useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useMemo, useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Clock, MapPin, User as UserIcon, Calendar, Filter, Pencil } from "lucide-react";
-import { format, startOfDay, isSameDay, isWithinInterval } from "date-fns";
-import { it } from "date-fns/locale";
-import { CreateShiftDialog } from "./create-shift-dialog";
-import { EditShiftDialog } from "./edit-shift-dialog";
-import { MarkUnavailableDialog } from "./mark-unavailable-dialog";
-import type { Shift, Venue, User, Unavailability } from "@/types";
+} from '@/components/ui/select'
+import { Clock, MapPin, User as UserIcon, Calendar, Filter, Pencil } from 'lucide-react'
+import { format, startOfDay, isSameDay, isWithinInterval } from 'date-fns'
+import { it } from 'date-fns/locale'
+import { CreateShiftDialog } from './create-shift-dialog'
+import { EditShiftDialog } from './edit-shift-dialog'
+import { MarkUnavailableDialog } from './mark-unavailable-dialog'
+import type { Shift, Venue, User, Unavailability } from '@/types'
 
 function parseLocalDate(dateStr: string): Date {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  return new Date(year, (month ?? 1) - 1, day ?? 1);
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, (month ?? 1) - 1, day ?? 1)
 }
 
 interface ShiftsListProps {
-  shifts: Shift[];
-  venues: Venue[];
-  users: User[];
-  currentUserId: string;
-  isAdmin?: boolean;
-  unavailabilities?: Unavailability[];
-  selectedDate?: Date | null;
-  onClearDate?: () => void;
-  isDemo?: boolean;
+  shifts: Shift[]
+  venues: Venue[]
+  users: User[]
+  currentUserId: string
+  isAdmin?: boolean
+  unavailabilities?: Unavailability[]
+  selectedDate?: Date | null
+  onClearDate?: () => void
+  isDemo?: boolean
   onCreateShift?: (payload: {
-    title: string;
-    description?: string;
-    venue_id: string;
-    shift_date: string;
-    start_time: string;
-    end_time: string;
-    assignees: string[];
-  }) => void;
-  onUpdateShift?: (id: string, payload: {
-    title: string;
-    description?: string;
-    venue_id: string;
-    shift_date: string;
-    start_time: string;
-    end_time: string;
-    assignees: string[];
-  }) => void;
-  onDeleteShift?: (id: string) => void;
-  onSaveUnavailability?: (payload: { id?: string; start_date: string; end_date: string; reason?: string }) => void;
-  onDeleteUnavailability?: (id: string) => void;
+    title: string
+    description?: string
+    venue_id: string
+    shift_date: string
+    start_time: string
+    end_time: string
+    assignees: string[]
+  }) => void
+  onUpdateShift?: (
+    id: string,
+    payload: {
+      title: string
+      description?: string
+      venue_id: string
+      shift_date: string
+      start_time: string
+      end_time: string
+      assignees: string[]
+    }
+  ) => void
+  onDeleteShift?: (id: string) => void
+  onSaveUnavailability?: (payload: {
+    id?: string
+    start_date: string
+    end_date: string
+    reason?: string
+  }) => void
+  onDeleteUnavailability?: (id: string) => void
 }
 
 export function ShiftsList({
@@ -72,66 +80,56 @@ export function ShiftsList({
   onSaveUnavailability,
   onDeleteUnavailability,
 }: ShiftsListProps) {
-  const [selectedVenue, setSelectedVenue] = useState<string | "all">("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [localShifts, setLocalShifts] = useState<Shift[]>(shifts);
+  const [selectedVenue, setSelectedVenue] = useState<string | 'all'>('all')
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
+  const [localShifts, setLocalShifts] = useState<Shift[]>(shifts)
 
   useEffect(() => {
-    setLocalShifts(shifts);
-  }, [shifts]);
+    setLocalShifts(shifts)
+  }, [shifts])
 
   const upcomingShifts = useMemo(() => {
-    const today = startOfDay(new Date()).getTime();
+    const today = startOfDay(new Date()).getTime()
     return localShifts.filter((shift) => {
-      const shiftDay = startOfDay(parseLocalDate(shift.shift_date)).getTime();
-      return shiftDay >= today;
-    });
-  }, [localShifts]);
+      const shiftDay = startOfDay(parseLocalDate(shift.shift_date)).getTime()
+      return shiftDay >= today
+    })
+  }, [localShifts])
 
   const filteredShifts = useMemo(() => {
     const base = selectedDate
-      ? localShifts.filter((shift) =>
-          isSameDay(parseLocalDate(shift.shift_date), selectedDate)
-        )
-      : upcomingShifts;
+      ? localShifts.filter((shift) => isSameDay(parseLocalDate(shift.shift_date), selectedDate))
+      : upcomingShifts
 
     return base.filter((shift) => {
-      const matchesVenue =
-        selectedVenue === "all" || shift.venue?.id === selectedVenue;
-      const assignees = shift.shift_assignees || [];
+      const matchesVenue = selectedVenue === 'all' || shift.venue?.id === selectedVenue
+      const assignees = shift.shift_assignees || []
       const matchesAssignee =
-        assigneeFilter === "all"
+        assigneeFilter === 'all'
           ? true
-          : assigneeFilter === "unassigned"
-          ? assignees.length === 0
-          : assigneeFilter === "me"
-          ? assignees.some((a) => a.user?.id === currentUserId)
-          : assignees.some((a) => a.user?.id === assigneeFilter);
+          : assigneeFilter === 'unassigned'
+            ? assignees.length === 0
+            : assigneeFilter === 'me'
+              ? assignees.some((a) => a.user?.id === currentUserId)
+              : assignees.some((a) => a.user?.id === assigneeFilter)
 
-      return matchesVenue && matchesAssignee;
-    });
-  }, [
-    upcomingShifts,
-    selectedVenue,
-    assigneeFilter,
-    currentUserId,
-    selectedDate,
-    localShifts,
-  ]);
+      return matchesVenue && matchesAssignee
+    })
+  }, [upcomingShifts, selectedVenue, assigneeFilter, currentUserId, selectedDate, localShifts])
 
   const unavailableOnSelectedDay = useMemo(() => {
-    if (!selectedDate) return [];
+    if (!selectedDate) return []
     return unavailabilities.filter((unav) =>
       isWithinInterval(selectedDate, {
         start: parseLocalDate(unav.start_date),
         end: parseLocalDate(unav.end_date),
       })
-    );
-  }, [selectedDate, unavailabilities]);
+    )
+  }, [selectedDate, unavailabilities])
 
   const handleDeleted = (id: string) => {
-    setLocalShifts((prev) => prev.filter((s) => s.id !== id));
-  };
+    setLocalShifts((prev) => prev.filter((s) => s.id !== id))
+  }
 
   return (
     <Card>
@@ -177,9 +175,7 @@ export function ShiftsList({
         </div>
         {selectedDate && (
           <div className="flex flex-row justify-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
-            <span>
-              {format(selectedDate, "EEEE d MMMM yyyy", { locale: it })}
-            </span>
+            <span>{format(selectedDate, 'EEEE d MMMM yyyy', { locale: it })}</span>
             {onClearDate && (
               <button
                 type="button"
@@ -196,8 +192,8 @@ export function ShiftsList({
             <span className="font-semibold">Indisponibili:</span>
             {unavailableOnSelectedDay.map((unav) => (
               <Badge key={unav.id} variant="outline" className="text-amber-800 border-amber-300">
-                {unav.user?.full_name || unav.user?.email || "Utente"}
-                {unav.reason ? ` · ${unav.reason}` : ""}
+                {unav.user?.full_name || unav.user?.email || 'Utente'}
+                {unav.reason ? ` · ${unav.reason}` : ''}
               </Badge>
             ))}
           </div>
@@ -207,10 +203,7 @@ export function ShiftsList({
             <Filter className="h-4 w-4" />
             <span>Filtra</span>
           </div>
-          <Select
-            value={assigneeFilter}
-            onValueChange={(value) => setAssigneeFilter(value)}
-          >
+          <Select value={assigneeFilter} onValueChange={(value) => setAssigneeFilter(value)}>
             <SelectTrigger className="text-sm w-full">
               <SelectValue placeholder="Utente" />
             </SelectTrigger>
@@ -229,9 +222,7 @@ export function ShiftsList({
           </Select>
           <Select
             value={selectedVenue}
-            onValueChange={(value) =>
-              setSelectedVenue(value as typeof selectedVenue)
-            }
+            onValueChange={(value) => setSelectedVenue(value as typeof selectedVenue)}
           >
             <SelectTrigger className="text-sm w-full">
               <SelectValue placeholder="Locale" />
@@ -264,16 +255,12 @@ export function ShiftsList({
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">{shift.title}</h3>
                     {shift.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {shift.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">{shift.description}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
                     {(isAdmin ||
-                      (shift.shift_assignees || []).some(
-                        (a) => a.user?.id === currentUserId
-                      )) && (
+                      (shift.shift_assignees || []).some((a) => a.user?.id === currentUserId)) && (
                       <EditShiftDialog
                         shift={shift as any}
                         venues={venues}
@@ -301,13 +288,12 @@ export function ShiftsList({
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Clock className="h-4 w-4" />
                     <span>
-                      {format(parseLocalDate(shift.shift_date), "EEEE d MMMM yyyy", {
+                      {format(parseLocalDate(shift.shift_date), 'EEEE d MMMM yyyy', {
                         locale: it,
                       })}
                     </span>
                     <span className="font-medium">
-                      {shift.start_time?.slice(0, 5)} -{" "}
-                      {shift.end_time?.slice(0, 5)}
+                      {shift.start_time?.slice(0, 5)} - {shift.end_time?.slice(0, 5)}
                     </span>
                   </div>
 
@@ -321,21 +307,20 @@ export function ShiftsList({
                     </div>
                   )}
 
-                  {shift.shift_assignees &&
-                    shift.shift_assignees.length > 0 && (
-                      <div className="flex items-start gap-2 text-muted-foreground">
-                        <UserIcon className="h-4 w-4 mt-0.5" />
-                        <div className="flex flex-wrap gap-2">
-                          {shift.shift_assignees
-                            .filter((assignee) => assignee.user)
-                            .map(({ user }) => (
-                              <Badge key={user!.id} variant="secondary">
-                                {user!.full_name || user!.email}
-                              </Badge>
-                            ))}
-                        </div>
+                  {shift.shift_assignees && shift.shift_assignees.length > 0 && (
+                    <div className="flex items-start gap-2 text-muted-foreground">
+                      <UserIcon className="h-4 w-4 mt-0.5" />
+                      <div className="flex flex-wrap gap-2">
+                        {shift.shift_assignees
+                          .filter((assignee) => assignee.user)
+                          .map(({ user }) => (
+                            <Badge key={user!.id} variant="secondary">
+                              {user!.full_name || user!.email}
+                            </Badge>
+                          ))}
                       </div>
-                    )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -343,5 +328,5 @@ export function ShiftsList({
         )}
       </CardContent>
     </Card>
-  );
+  )
 }

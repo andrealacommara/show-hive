@@ -1,12 +1,12 @@
-"use client"
+'use client'
 
-import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { Calendar, AlertCircle, FlaskConical } from "lucide-react"
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { Calendar, AlertCircle, FlaskConical } from 'lucide-react'
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
+        provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
@@ -29,10 +29,12 @@ export default function LoginPage() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Errore durante l'accesso"
 
-      if (errorMessage.includes("Invalid") || errorMessage.includes("provider")) {
-        setError("Provider Google non configurato. Segui le istruzioni di configurazione.")
-      } else if (errorMessage.includes("redirect")) {
-        setError("URL di reindirizzamento non valido. Verifica la configurazione in Google Cloud Console.")
+      if (errorMessage.includes('Invalid') || errorMessage.includes('provider')) {
+        setError('Provider Google non configurato. Segui le istruzioni di configurazione.')
+      } else if (errorMessage.includes('redirect')) {
+        setError(
+          'URL di reindirizzamento non valido. Verifica la configurazione in Google Cloud Console.'
+        )
       } else {
         setError(errorMessage)
       }
@@ -41,7 +43,7 @@ export default function LoginPage() {
   }
 
   const handleDemoAccess = () => {
-    router.push("/dashboard?demo=true")
+    router.push('/dashboard?demo=true')
   }
 
   return (
@@ -67,7 +69,7 @@ export default function LoginPage() {
               )}
               <Button onClick={handleGoogleLogin} className="w-full" disabled={isLoading} size="lg">
                 {isLoading ? (
-                  "Accesso in corso..."
+                  'Accesso in corso...'
                 ) : (
                   <div className="flex items-center gap-2">
                     <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -102,12 +104,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <Button
-                onClick={handleDemoAccess}
-                variant="outline"
-                className="w-full"
-                size="lg"
-              >
+              <Button onClick={handleDemoAccess} variant="outline" className="w-full" size="lg">
                 <FlaskConical className="h-4 w-4 mr-2" />
                 Prova la demo
               </Button>

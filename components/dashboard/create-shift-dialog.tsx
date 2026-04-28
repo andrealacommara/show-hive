@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import type React from "react"
+import type React from 'react'
 
-import { useMemo, useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -11,15 +11,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus, Check, X } from "lucide-react"
-import { useRouter } from "next/navigation"
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Plus, Check, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface Venue {
   id: string
@@ -80,13 +86,13 @@ export function CreateShiftDialog({
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    venue_id: "",
+    title: '',
+    description: '',
+    venue_id: '',
     assignees: [] as string[],
-    shift_date: "",
-    start_time: "",
-    end_time: "",
+    shift_date: '',
+    start_time: '',
+    end_time: '',
   })
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -94,12 +100,12 @@ export function CreateShiftDialog({
   const unavailableMap = useMemo(() => {
     if (!formData.shift_date) return new Set<string>()
     // Parse as local date to avoid UTC offset issues
-    const [y, m, d] = formData.shift_date.split("-").map(Number)
+    const [y, m, d] = formData.shift_date.split('-').map(Number)
     const day = new Date(y, (m ?? 1) - 1, d ?? 1)
     const set = new Set<string>()
     unavailabilities.forEach((u) => {
-      const [sy, sm, sd] = u.start_date.split("-").map(Number)
-      const [ey, em, ed] = u.end_date.split("-").map(Number)
+      const [sy, sm, sd] = u.start_date.split('-').map(Number)
+      const [ey, em, ed] = u.end_date.split('-').map(Number)
       const start = new Date(sy, (sm ?? 1) - 1, sd ?? 1)
       const end = new Date(ey, (em ?? 1) - 1, ed ?? 1)
       if (day >= start && day <= end && u.user?.id) {
@@ -133,14 +139,15 @@ export function CreateShiftDialog({
     setFormData((prev) => ({
       ...prev,
       title: shift.title || prev.title,
-      description: shift.description || "",
-      venue_id: shift.venue_id || "",
-      start_time: shift.start_time || "",
-      end_time: shift.end_time || "",
-      shift_date: prev.shift_date || shift.shift_date || "",
+      description: shift.description || '',
+      venue_id: shift.venue_id || '',
+      start_time: shift.start_time || '',
+      end_time: shift.end_time || '',
+      shift_date: prev.shift_date || shift.shift_date || '',
       assignees:
-        (shift.shift_assignees?.map(({ user }) => user?.id).filter(Boolean) as string[] | undefined) ||
-        [],
+        (shift.shift_assignees?.map(({ user }) => user?.id).filter(Boolean) as
+          | string[]
+          | undefined) || [],
     }))
   }
 
@@ -150,17 +157,17 @@ export function CreateShiftDialog({
     setIsLoading(true)
 
     if (!formData.title.trim()) {
-      setError("Il titolo è obbligatorio")
+      setError('Il titolo è obbligatorio')
       setIsLoading(false)
       return
     }
     if (!formData.venue_id) {
-      setError("Seleziona un venue")
+      setError('Seleziona un venue')
       setIsLoading(false)
       return
     }
     if (!formData.shift_date) {
-      setError("Seleziona una data")
+      setError('Seleziona una data')
       setIsLoading(false)
       return
     }
@@ -184,21 +191,21 @@ export function CreateShiftDialog({
         })
         setOpen(false)
         setFormData({
-          title: "",
-          description: "",
-          venue_id: "",
+          title: '',
+          description: '',
+          venue_id: '',
           assignees: [],
-          shift_date: "",
-          start_time: "",
-          end_time: "",
+          shift_date: '',
+          start_time: '',
+          end_time: '',
         })
         return
       }
 
-      const response = await fetch("/api/shifts", {
-        method: "POST",
+      const response = await fetch('/api/shifts', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           ...formData,
@@ -208,7 +215,7 @@ export function CreateShiftDialog({
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
-        throw new Error(data.error || "Failed to create shift")
+        throw new Error(data.error || 'Failed to create shift')
       }
 
       const data = await response.json()
@@ -220,18 +227,18 @@ export function CreateShiftDialog({
       })
       setOpen(false)
       setFormData({
-        title: "",
-        description: "",
-        venue_id: "",
+        title: '',
+        description: '',
+        venue_id: '',
         assignees: [],
-        shift_date: "",
-        start_time: "",
-        end_time: "",
+        shift_date: '',
+        start_time: '',
+        end_time: '',
       })
       router.refresh()
     } catch (error) {
-      console.error("[app] Error creating shift:", error)
-      setError((error as Error).message || "Errore durante la creazione del turno")
+      console.error('[app] Error creating shift:', error)
+      setError((error as Error).message || 'Errore durante la creazione del turno')
     } finally {
       setIsLoading(false)
     }
@@ -248,7 +255,9 @@ export function CreateShiftDialog({
       <DialogContent className="sm:max-w-125 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Crea Nuovo Turno</DialogTitle>
-          <DialogDescription>Aggiungi un nuovo turno e assegnalo a un membro del team</DialogDescription>
+          <DialogDescription>
+            Aggiungi un nuovo turno e assegnalo a un membro del team
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -334,7 +343,8 @@ export function CreateShiftDialog({
               <Label>Assegna a (multipli)</Label>
               {formData.assignees.length > 0 && (
                 <span className="text-xs text-muted-foreground">
-                  {formData.assignees.length} selezionat{formData.assignees.length === 1 ? "o" : "i"}
+                  {formData.assignees.length} selezionat
+                  {formData.assignees.length === 1 ? 'o' : 'i'}
                 </span>
               )}
             </div>
@@ -345,7 +355,8 @@ export function CreateShiftDialog({
                 <div className="p-1 space-y-0.5">
                   {users.map((user) => {
                     const selected = formData.assignees.includes(user.id)
-                    const unavailable = unavailableMap.has(user.id) && formData.shift_date.length > 0
+                    const unavailable =
+                      unavailableMap.has(user.id) && formData.shift_date.length > 0
                     const isMe = user.id === currentUserId
 
                     return (
@@ -364,15 +375,15 @@ export function CreateShiftDialog({
                         disabled={unavailable}
                         className={`
                           w-full flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors
-                          ${selected ? "bg-primary/8 text-foreground" : "hover:bg-muted"}
-                          ${unavailable ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
+                          ${selected ? 'bg-primary/8 text-foreground' : 'hover:bg-muted'}
+                          ${unavailable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
                         `}
                       >
                         {/* Checkbox-style indicator */}
                         <span
                           className={`
                             flex h-4 w-4 shrink-0 items-center justify-center rounded border
-                            ${selected ? "bg-primary border-primary text-primary-foreground" : "border-input"}
+                            ${selected ? 'bg-primary border-primary text-primary-foreground' : 'border-input'}
                           `}
                         >
                           {selected && <Check className="h-2.5 w-2.5" />}
@@ -385,7 +396,10 @@ export function CreateShiftDialog({
 
                         {/* "Tu" badge — always visible for the current user */}
                         {isMe && (
-                          <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 text-muted-foreground">
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 text-[10px] px-1.5 py-0 text-muted-foreground"
+                          >
                             tu
                           </Badge>
                         )}
@@ -479,11 +493,16 @@ export function CreateShiftDialog({
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isLoading}
+            >
               Annulla
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creazione..." : "Crea Turno"}
+              {isLoading ? 'Creazione...' : 'Crea Turno'}
             </Button>
           </div>
         </form>

@@ -1,13 +1,20 @@
-"use client"
+'use client'
 
-import { useState, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
-import { toast } from "sonner"
+import { toast } from 'sonner'
 
 type Venue = {
   id: string
@@ -21,17 +28,26 @@ interface EditVenueDialogProps {
   onUpdated?: () => void
   children: ReactNode
   isDemo?: boolean
-  onSaveVenue?: (venueId: string, payload: { name: string; address?: string; city?: string }) => void
+  onSaveVenue?: (
+    venueId: string,
+    payload: { name: string; address?: string; city?: string }
+  ) => void
 }
 
-export function EditVenueDialog({ venue, onUpdated, children, isDemo = false, onSaveVenue }: EditVenueDialogProps) {
+export function EditVenueDialog({
+  venue,
+  onUpdated,
+  children,
+  isDemo = false,
+  onSaveVenue,
+}: EditVenueDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    name: venue.name || "",
-    address: venue.address || "",
-    city: venue.city || "",
+    name: venue.name || '',
+    address: venue.address || '',
+    city: venue.city || '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,7 +60,7 @@ export function EditVenueDialog({ venue, onUpdated, children, isDemo = false, on
     }
 
     if (!payload.name) {
-      toast.error("Nome locale obbligatorio")
+      toast.error('Nome locale obbligatorio')
       return
     }
 
@@ -57,17 +73,17 @@ export function EditVenueDialog({ venue, onUpdated, children, isDemo = false, on
     setIsLoading(true)
     try {
       const res = await fetch(`/api/venues/${venue.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (!res.ok) throw new Error("Update failed")
+      if (!res.ok) throw new Error('Update failed')
       setOpen(false)
       onUpdated?.()
       router.refresh()
     } catch (error) {
-      console.error("Update venue failed", error)
-      alert("Impossibile aggiornare il locale")
+      console.error('Update venue failed', error)
+      alert('Impossibile aggiornare il locale')
     } finally {
       setIsLoading(false)
     }
@@ -101,7 +117,9 @@ export function EditVenueDialog({ venue, onUpdated, children, isDemo = false, on
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
-            <p className="text-xs text-muted-foreground">Inserisci via e numero civico per una geolocalizzazione migliore.</p>
+            <p className="text-xs text-muted-foreground">
+              Inserisci via e numero civico per una geolocalizzazione migliore.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor={`city-${venue.id}`}>Città</Label>
@@ -112,14 +130,21 @@ export function EditVenueDialog({ venue, onUpdated, children, isDemo = false, on
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
             />
-            <p className="text-xs text-muted-foreground">Aggiungi sempre la città per il parsing corretto in Google Calendar.</p>
+            <p className="text-xs text-muted-foreground">
+              Aggiungi sempre la città per il parsing corretto in Google Calendar.
+            </p>
           </div>
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isLoading}
+            >
               Annulla
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Salvataggio..." : "Salva"}
+              {isLoading ? 'Salvataggio...' : 'Salva'}
             </Button>
           </div>
         </form>

@@ -1,9 +1,9 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { getProviderAvatar, getProviderFullName } from "@/lib/profile-metadata"
-import { DashboardView } from "@/components/dashboard/dashboard-view"
-import type { Profile, Unavailability, User } from "@/types"
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getProviderAvatar, getProviderFullName } from '@/lib/profile-metadata'
+import { DashboardView } from '@/components/dashboard/dashboard-view'
+import type { Profile, Unavailability, User } from '@/types'
 import {
   DEMO_USER,
   DEMO_PROFILE,
@@ -12,7 +12,7 @@ import {
   DEMO_USERS,
   DEMO_MEMBERS,
   DEMO_UNAVAILABILITIES,
-} from "@/lib/demo-data"
+} from '@/lib/demo-data'
 
 interface DashboardPageProps {
   searchParams: Promise<{ demo?: string }>
@@ -20,7 +20,7 @@ interface DashboardPageProps {
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const params = await searchParams
-  const isDemo = params?.demo === "true"
+  const isDemo = params?.demo === 'true'
 
   if (isDemo) {
     return (
@@ -46,18 +46,22 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     error,
   } = await supabase.auth.getUser()
   if (error || !user) {
-    redirect("/auth/login")
+    redirect('/auth/login')
   }
 
-  const { data: access } = await admin.from("allowed_users").select("id, role").eq("email", user.email).maybeSingle()
+  const { data: access } = await admin
+    .from('allowed_users')
+    .select('id, role')
+    .eq('email', user.email)
+    .maybeSingle()
   if (!access) {
-    redirect("/auth/unauthorized")
+    redirect('/auth/unauthorized')
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, avatar_url")
-    .eq("id", user.id)
+    .from('profiles')
+    .select('id, full_name, email, avatar_url')
+    .eq('id', user.id)
     .single()
 
   const providerFullName = getProviderFullName(user)
@@ -65,8 +69,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const fullName = profile?.full_name || providerFullName
   const avatarUrl = providerAvatar || profile?.avatar_url || null
 
-  if (!profile || profile.full_name !== fullName || profile.avatar_url !== avatarUrl || profile.email !== user.email) {
-    await supabase.from("profiles").upsert({
+  if (
+    !profile ||
+    profile.full_name !== fullName ||
+    profile.avatar_url !== avatarUrl ||
+    profile.email !== user.email
+  ) {
+    await supabase.from('profiles').upsert({
       id: user.id,
       email: user.email,
       full_name: fullName,
@@ -75,31 +84,36 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const { data: allUsers } = await admin
-    .from("profiles")
-    .select("id, full_name, email")
-    .order("full_name", { ascending: true })
+    .from('profiles')
+    .select('id, full_name, email')
+    .order('full_name', { ascending: true })
 
   const { data: shifts } = await admin
-    .from("shifts")
-    .select(`
+    .from('shifts')
+    .select(
+      `
       *,
       venue:venues(*),
       assigned_user:profiles!shifts_assigned_to_fkey(id, full_name, email),
       shift_assignees:shift_assignees(user:profiles(id, full_name, email))
-    `)
-    .order("shift_date", { ascending: true })
-    .order("start_time", { ascending: true })
+    `
+    )
+    .order('shift_date', { ascending: true })
+    .order('start_time', { ascending: true })
 
-  const { data: venues } = await admin.from("venues").select("*").order("name", { ascending: true })
-  const { data: members } = await admin.from("allowed_users").select("*").order("email", { ascending: true })
+  const { data: venues } = await admin.from('venues').select('*').order('name', { ascending: true })
+  const { data: members } = await admin
+    .from('allowed_users')
+    .select('*')
+    .order('email', { ascending: true })
   const { data: unavailabilities } = await admin
-    .from("unavailabilities")
-    .select("id, user_id, start_date, end_date, reason, user:profiles(id, full_name, email)")
-    .order("start_date", { ascending: true })
+    .from('unavailabilities')
+    .select('id, user_id, start_date, end_date, reason, user:profiles(id, full_name, email)')
+    .order('start_date', { ascending: true })
 
   const dashboardUser: User = {
     id: user.id,
-    email: user.email ?? "",
+    email: user.email ?? '',
     full_name: providerFullName,
   }
 
@@ -111,24 +125,28 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     avatar_url: avatarUrl,
   }
 
-  const normalizedUnavailabilities: Unavailability[] = (unavailabilities ?? []).map((unavailability) => {
-    const relatedUser = Array.isArray(unavailability.user) ? unavailability.user[0] : unavailability.user
+  const normalizedUnavailabilities: Unavailability[] = (unavailabilities ?? []).map(
+    (unavailability) => {
+      const relatedUser = Array.isArray(unavailability.user)
+        ? unavailability.user[0]
+        : unavailability.user
 
-    return {
-      id: unavailability.id,
-      user_id: unavailability.user_id,
-      start_date: unavailability.start_date,
-      end_date: unavailability.end_date,
-      reason: unavailability.reason,
-      user: relatedUser
-        ? {
-            id: relatedUser.id,
-            full_name: relatedUser.full_name,
-            email: relatedUser.email,
-          }
-        : undefined,
+      return {
+        id: unavailability.id,
+        user_id: unavailability.user_id,
+        start_date: unavailability.start_date,
+        end_date: unavailability.end_date,
+        reason: unavailability.reason,
+        user: relatedUser
+          ? {
+              id: relatedUser.id,
+              full_name: relatedUser.full_name,
+              email: relatedUser.email,
+            }
+          : undefined,
+      }
     }
-  })
+  )
 
   return (
     <DashboardView
@@ -138,7 +156,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       venues={venues || []}
       users={allUsers || []}
       members={members || []}
-      isAdmin={access?.role === "admin"}
+      isAdmin={access?.role === 'admin'}
       unavailabilities={normalizedUnavailabilities}
       isDemo={false}
     />

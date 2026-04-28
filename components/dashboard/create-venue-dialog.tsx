@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import type React from "react"
+import type React from 'react'
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -11,13 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
-import { toast } from "sonner"
+import { toast } from 'sonner'
 
 interface CreateVenueDialogProps {
   currentUserId: string
@@ -25,13 +25,17 @@ interface CreateVenueDialogProps {
   onCreateVenue?: (payload: { id?: string; name: string; address?: string; city?: string }) => void
 }
 
-export function CreateVenueDialog({ currentUserId, isDemo = false, onCreateVenue }: CreateVenueDialogProps) {
+export function CreateVenueDialog({
+  currentUserId,
+  isDemo = false,
+  onCreateVenue,
+}: CreateVenueDialogProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    name: "",
-    address: "",
-    city: "",
+    name: '',
+    address: '',
+    city: '',
   })
   const router = useRouter()
 
@@ -45,29 +49,29 @@ export function CreateVenueDialog({ currentUserId, isDemo = false, onCreateVenue
     }
 
     if (!payload.name) {
-      toast.error("Nome locale obbligatorio")
+      toast.error('Nome locale obbligatorio')
       return
     }
 
     if (isDemo) {
       onCreateVenue?.(payload)
       setOpen(false)
-      setFormData({ name: "", address: "", city: "" })
+      setFormData({ name: '', address: '', city: '' })
       return
     }
 
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/venues", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/venues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || "Errore durante la creazione del locale")
+        throw new Error(data.error || 'Errore durante la creazione del locale')
       }
 
       const data = await response.json()
@@ -76,11 +80,11 @@ export function CreateVenueDialog({ currentUserId, isDemo = false, onCreateVenue
         id: data.id,
       })
       setOpen(false)
-      setFormData({ name: "", address: "", city: "" })
+      setFormData({ name: '', address: '', city: '' })
       router.refresh()
     } catch (error) {
-      console.error("[app] Error creating venue:", error)
-      alert("Errore durante la creazione del locale")
+      console.error('[app] Error creating venue:', error)
+      alert('Errore durante la creazione del locale')
     } finally {
       setIsLoading(false)
     }
@@ -121,7 +125,9 @@ export function CreateVenueDialog({ currentUserId, isDemo = false, onCreateVenue
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
-            <p className="text-xs text-muted-foreground">Inserisci via e numero civico per una geolocalizzazione migliore.</p>
+            <p className="text-xs text-muted-foreground">
+              Inserisci via e numero civico per una geolocalizzazione migliore.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -133,15 +139,22 @@ export function CreateVenueDialog({ currentUserId, isDemo = false, onCreateVenue
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
             />
-            <p className="text-xs text-muted-foreground">Aggiungi sempre la città per il parsing corretto in Google Calendar.</p>
+            <p className="text-xs text-muted-foreground">
+              Aggiungi sempre la città per il parsing corretto in Google Calendar.
+            </p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isLoading}
+            >
               Annulla
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creazione..." : "Aggiungi Locale"}
+              {isLoading ? 'Creazione...' : 'Aggiungi Locale'}
             </Button>
           </div>
         </form>

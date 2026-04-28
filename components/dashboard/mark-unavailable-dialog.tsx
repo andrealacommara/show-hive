@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { useMemo, useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,15 +19,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { CalendarX } from "lucide-react"
-import { useRouter } from "next/navigation"
+} from '@/components/ui/alert-dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { CalendarX } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 function parseLocalDate(dateStr: string): Date {
-  const [year, month, day] = dateStr.split("-").map(Number)
+  const [year, month, day] = dateStr.split('-').map(Number)
   return new Date(year, (month ?? 1) - 1, day ?? 1)
 }
 
@@ -43,7 +43,12 @@ interface Props {
   unavailabilities: Unavailability[]
   currentUserId: string
   isDemo?: boolean
-  onSaveUnavailability?: (payload: { id?: string; start_date: string; end_date: string; reason?: string }) => void
+  onSaveUnavailability?: (payload: {
+    id?: string
+    start_date: string
+    end_date: string
+    reason?: string
+  }) => void
   onDeleteUnavailability?: (id: string) => void
 }
 
@@ -57,9 +62,9 @@ export function MarkUnavailableDialog({
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [form, setForm] = useState({
-    start_date: "",
-    end_date: "",
-    reason: "",
+    start_date: '',
+    end_date: '',
+    reason: '',
   })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -68,7 +73,7 @@ export function MarkUnavailableDialog({
 
   const myUnavailabilities = useMemo(
     () => unavailabilities.filter((u) => u.user?.id === currentUserId),
-    [unavailabilities, currentUserId],
+    [unavailabilities, currentUserId]
   )
 
   const today = useMemo(() => {
@@ -78,7 +83,7 @@ export function MarkUnavailableDialog({
 
   const activeOrUpcomingUnavailabilities = useMemo(() => {
     const toDate = (value: string) => {
-      const [year, month, day] = value.split("-").map(Number)
+      const [year, month, day] = value.split('-').map(Number)
       return new Date(year, (month ?? 1) - 1, day ?? 1)
     }
     return myUnavailabilities.filter((item) => toDate(item.end_date) >= today)
@@ -89,7 +94,7 @@ export function MarkUnavailableDialog({
     setError(null)
 
     if (!form.start_date || !form.end_date) {
-      setError("Seleziona un intervallo di date")
+      setError('Seleziona un intervallo di date')
       return
     }
     if (parseLocalDate(form.start_date) > parseLocalDate(form.end_date)) {
@@ -106,31 +111,31 @@ export function MarkUnavailableDialog({
           end_date: form.end_date,
           reason: form.reason,
         })
-        setForm({ start_date: "", end_date: "", reason: "" })
+        setForm({ start_date: '', end_date: '', reason: '' })
         setEditingId(null)
         setOpen(false)
         return
       }
 
-      const endpoint = editingId ? `/api/unavailabilities/${editingId}` : "/api/unavailabilities"
-      const method = editingId ? "PUT" : "POST"
+      const endpoint = editingId ? `/api/unavailabilities/${editingId}` : '/api/unavailabilities'
+      const method = editingId ? 'PUT' : 'POST'
       const res = await fetch(endpoint, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || "Errore nel salvataggio")
+        throw new Error(data.error || 'Errore nel salvataggio')
       }
 
-      setForm({ start_date: "", end_date: "", reason: "" })
+      setForm({ start_date: '', end_date: '', reason: '' })
       setEditingId(null)
       setOpen(false)
       router.refresh()
     } catch (err) {
-      console.error("[unavailabilities] save error", err)
+      console.error('[unavailabilities] save error', err)
       setError((err as Error).message || "Non siamo riusciti a salvare l'indisponibilità")
     } finally {
       setIsLoading(false)
@@ -142,7 +147,7 @@ export function MarkUnavailableDialog({
     setForm({
       start_date: item.start_date,
       end_date: item.end_date,
-      reason: item.reason || "",
+      reason: item.reason || '',
     })
     setOpen(true)
   }
@@ -159,15 +164,15 @@ export function MarkUnavailableDialog({
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/unavailabilities/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/unavailabilities/${id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || "Errore nella cancellazione")
+        throw new Error(data.error || 'Errore nella cancellazione')
       }
       router.refresh()
     } catch (err) {
-      console.error("[unavailabilities] delete error", err)
-      setError((err as Error).message || "Errore nella cancellazione")
+      console.error('[unavailabilities] delete error', err)
+      setError((err as Error).message || 'Errore nella cancellazione')
     } finally {
       setIsLoading(false)
     }
@@ -175,7 +180,7 @@ export function MarkUnavailableDialog({
 
   const itemToDelete = useMemo(
     () => activeOrUpcomingUnavailabilities.find((u) => u.id === confirmDeleteId),
-    [activeOrUpcomingUnavailabilities, confirmDeleteId],
+    [activeOrUpcomingUnavailabilities, confirmDeleteId]
   )
 
   return (
@@ -189,7 +194,9 @@ export function MarkUnavailableDialog({
         </DialogTrigger>
         <DialogContent className="sm:max-w-105">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Modifica indisponibilità" : "Segna indisponibilità"}</DialogTitle>
+            <DialogTitle>
+              {editingId ? 'Modifica indisponibilità' : 'Segna indisponibilità'}
+            </DialogTitle>
             <DialogDescription>Indica le date in cui non puoi coprire turni.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -236,14 +243,14 @@ export function MarkUnavailableDialog({
                 onClick={() => {
                   setOpen(false)
                   setEditingId(null)
-                  setForm({ start_date: "", end_date: "", reason: "" })
+                  setForm({ start_date: '', end_date: '', reason: '' })
                 }}
                 disabled={isLoading}
               >
                 Annulla
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Salvataggio..." : editingId ? "Aggiorna" : "Salva"}
+                {isLoading ? 'Salvataggio...' : editingId ? 'Aggiorna' : 'Salva'}
               </Button>
             </div>
           </form>
@@ -296,15 +303,17 @@ export function MarkUnavailableDialog({
       {/* Conferma eliminazione indisponibilità */}
       <AlertDialog
         open={confirmDeleteId !== null}
-        onOpenChange={(v) => { if (!v) setConfirmDeleteId(null) }}
+        onOpenChange={(v) => {
+          if (!v) setConfirmDeleteId(null)
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminare l'indisponibilità?</AlertDialogTitle>
             <AlertDialogDescription>
               {itemToDelete
-                ? `Stai per eliminare l'indisponibilità dal ${itemToDelete.start_date} al ${itemToDelete.end_date}${itemToDelete.reason ? ` (${itemToDelete.reason})` : ""}.`
-                : "Stai per eliminare questa indisponibilità."}{" "}
+                ? `Stai per eliminare l'indisponibilità dal ${itemToDelete.start_date} al ${itemToDelete.end_date}${itemToDelete.reason ? ` (${itemToDelete.reason})` : ''}.`
+                : 'Stai per eliminare questa indisponibilità.'}{' '}
               Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>

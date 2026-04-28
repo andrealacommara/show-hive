@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function UnauthorizedPage() {
   return (
@@ -12,7 +12,10 @@ export default function UnauthorizedPage() {
           <CardTitle>Accesso non autorizzato</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p>Il tuo account non è abilitato. Chiedi a un admin di aggiungere la tua email ai collaboratori.</p>
+          <p>
+            Il tuo account non è abilitato. Chiedi a un admin di aggiungere la tua email ai
+            collaboratori.
+          </p>
           <div className="flex gap-2">
             <Button asChild variant="secondary" className="w-full">
               <Link href="/auth/login">Torna al login</Link>

@@ -1,13 +1,13 @@
-import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
-import { requireAllowed } from "@/lib/authz"
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
+import { requireAllowed } from '@/lib/authz'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { name, address, city } = body
     if (!name) {
-      return NextResponse.json({ error: "Nome locale obbligatorio" }, { status: 400 })
+      return NextResponse.json({ error: 'Nome locale obbligatorio' }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -17,12 +17,12 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     await requireAllowed(user.email)
 
-    const { error } = await supabase.from("venues").insert({
+    const { error } = await supabase.from('venues').insert({
       name,
       address,
       city,
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[venues] POST error", error)
-    return NextResponse.json({ error: "Impossibile creare il locale" }, { status: 400 })
+    console.error('[venues] POST error', error)
+    return NextResponse.json({ error: 'Impossibile creare il locale' }, { status: 400 })
   }
 }
