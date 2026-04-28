@@ -54,6 +54,16 @@ export function DashboardView({
     setUsersState((prev) =>
       prev.map((item) => (item.id === user.id ? { ...item, full_name: fullName } : item))
     )
+    setShiftsState((prev) =>
+      prev.map((shift) => ({
+        ...shift,
+        shift_assignees: shift.shift_assignees?.map((assignee) =>
+          assignee.user_id === user.id
+            ? { ...assignee, user: { ...assignee.user!, full_name: fullName } }
+            : assignee
+        ),
+      }))
+    )
   }
 
   const handleCreateVenue = (payload: {
@@ -195,7 +205,7 @@ export function DashboardView({
     reason?: string
   }) => {
     const existing = payload.id
-    const currentUser = usersState.find((item) => item.id === user.id) || {
+    const currentUser = {
       id: user.id,
       email: user.email,
       full_name: profileState.full_name,
@@ -239,6 +249,15 @@ export function DashboardView({
 
   const handleMembersChange = (nextMembers: Member[]) => {
     setMembersState(nextMembers)
+    // Sync usersState so newly added members are immediately available as shift assignees.
+    // We only add entries for emails not yet present — we never override existing user data
+    // (which carries the full_name resolved from profiles).
+    setUsersState((prev) => {
+      const existingEmails = new Set(prev.map((u) => u.email))
+      const toAdd = nextMembers.filter((m) => !existingEmails.has(m.email))
+      if (toAdd.length === 0) return prev
+      return [...prev, ...toAdd.map((m) => ({ id: m.id, email: m.email, full_name: undefined }))]
+    })
   }
 
   return (
