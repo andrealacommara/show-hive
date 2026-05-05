@@ -11,7 +11,13 @@ jobs:
     steps:
       - name: Ping Supabase
         run: |
-          curl -sf \
+          response=$(curl -sf \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/profiles?select=id&limit=1"
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ping?select=id&limit=1")
+          echo "Response: $response"
+          if [ "$response" = "[]" ] || [ -z "$response" ]; then
+            echo "::error::Ping fallito - risposta vuota o inattesa"
+            exit 1
+          fi
+          echo "✅ Supabase raggiungibile"
