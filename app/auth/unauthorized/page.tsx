@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function UnauthorizedPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-slate-100 p-4">
       <Card className="max-w-md w-full">
         <CardHeader>
           <CardTitle>Accesso non autorizzato</CardTitle>
