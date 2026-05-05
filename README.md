@@ -343,7 +343,10 @@ pnpm test:coverage     # Generate coverage report
 scripts/001_create_tables.sql
 scripts/002_profile_trigger.sql
 scripts/003_allowed_users.sql
+scripts/004_create_ping_table.sql
 ```
+
+   ⚠️ **Important:** Script 004 must be run to enable the GitHub Actions keep-alive workflow (see [Maintenance & Operations](#maintenance--operations)).
 
 3. In your Supabase project, go to **Authentication → Providers → Google** and enable Google OAuth. You will need a Google OAuth Client ID and Secret (see next section).
 
@@ -783,15 +786,20 @@ The repository includes a GitHub Actions workflow (`.github/workflows/keep-alive
 **How it works:**
 
 - Cron schedule: `0 8 */3 * *` (every 3 days at 08:00 UTC)
-- Action: Makes a simple API call to your Supabase project
+- Action: Queries the `public.ping` table (REST API call)
 - Secrets required: `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+
+**Prerequisites:**
+
+Before enabling the workflow, you must run **`scripts/004_create_ping_table.sql`** in your Supabase project. This creates the `ping` table that the workflow queries. Without it, the workflow will fail.
 
 **To enable it on your fork:**
 
-1. Go to **Repository Settings → Secrets and variables → Actions**
-2. Add `SUPABASE_URL` (your Supabase project URL)
-3. Add `SUPABASE_ANON_KEY` (your Supabase anon key)
-4. The workflow will run automatically starting the next scheduled time
+1. Ensure `scripts/004_create_ping_table.sql` has been run in your Supabase project (see [Set up Supabase](#4-set-up-supabase))
+2. Go to **Repository Settings → Secrets and variables → Actions**
+3. Add `SUPABASE_URL` (your Supabase project URL)
+4. Add `SUPABASE_ANON_KEY` (your Supabase anon key)
+5. The workflow will run automatically starting the next scheduled time
 
 If you don't use this, Supabase free-tier projects may pause after 1 week of inactivity, and you'll need to manually resume them.
 
